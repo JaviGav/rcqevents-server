@@ -1,0 +1,8 @@
+[
+  {
+    "id": "deploy",
+    "execute-command": "/opt/rcqevents-server/deploy.sh",
+    "command-working-directory": "/opt/rcqevents-server"
+  }
+]
+
