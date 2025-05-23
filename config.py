@@ -10,7 +10,7 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
     
     # Database
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://localhost/rcqevents')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///rcqevents.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # JWT
