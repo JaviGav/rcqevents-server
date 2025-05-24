@@ -357,11 +357,11 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
             editingEventId = id;
             document.getElementById('eventId').value = id;
             document.getElementById('nombre').value = nombre;
-            
-            const fechaObj = new Date(fecha);
-            const fechaInput = fechaObj.toISOString().slice(0, 16);
+            // fecha viene como "YYYY-MM-DD HH:MM:SS"
+            // Convertimos a "YYYY-MM-DDTHH:MM" para el input
+            const [datePart, timePart] = fecha.split(' ');
+            const fechaInput = datePart + 'T' + timePart.slice(0,5);
             document.getElementById('fecha').value = fechaInput;
-            
             document.getElementById('formTitle').textContent = 'Editar Evento';
             document.getElementById('submitBtn').textContent = 'Actualizar Evento';
             document.getElementById('cancelBtn').style.display = 'inline-block';
