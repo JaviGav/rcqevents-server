@@ -1,7 +1,7 @@
 [
   {
     "id": "deploy",
-    "execute-command": "/opt/rcqevents-server/deploy.sh",
+    "execute-command": "/opt/rcqevents-server/deploy.sh >> /opt/rcqevents-server/deploy.log 2>&1",
     "command-working-directory": "/opt/rcqevents-server"
   }
 ]
