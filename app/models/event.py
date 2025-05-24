@@ -1,5 +1,6 @@
 from app import db
 from datetime import datetime
+import pytz
 
 class Event(db.Model):
     __tablename__ = 'events'
@@ -12,10 +13,13 @@ class Event(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
     def to_dict(self):
+        madrid_tz = pytz.timezone("Europe/Madrid")
+        # Convertimos self.fecha (UTC) a la zona horaria de Madrid
+        fecha_madrid = madrid_tz.fromutc(self.fecha) if self.fecha else None
         event_dict = {
             'id': self.id,
             'nombre': self.nombre,
-            'fecha': self.fecha.strftime('%Y-%m-%d %H:%M:%S') if self.fecha else None,
+            'fecha': (fecha_madrid.strftime('%Y-%m-%d %H:%M:%S') if fecha_madrid else None),
             'user_id': self.user_id
         }
         # Si quieres incluir datos del organizador (User) aquí, puedes hacerlo si la relación está cargada
