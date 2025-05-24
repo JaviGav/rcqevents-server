@@ -3,7 +3,7 @@ from app.models.event import Event
 from app.models.user import User
 from app import db
 from datetime import datetime
-from flask_login import current_user, login_required
+from app.routes.auth import token_required
 
 bp = Blueprint('events', __name__, url_prefix='/events')
 
@@ -39,8 +39,8 @@ def get_event(event_id):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @bp.route('/api', methods=['POST'])
-@login_required
-def create_event():
+@token_required
+def create_event(current_user):
     try:
         data = request.get_json()
         
