@@ -1,6 +1,6 @@
 # RCQEvents Server
 
-<!-- Test webhook logging again -->
+<!-- Test webhook logging for the Nth time -->
 
 Servidor backend para la aplicación RCQEvents desarrollado con Flask.
 
