@@ -39,41 +39,24 @@ def get_event(event_id):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @bp.route('/api', methods=['POST'])
-@token_required
-def create_event(current_user):
+def create_event():
     try:
         data = request.get_json()
-        
-        # Validar datos requeridos
         if not data or 'nombre' not in data or 'fecha' not in data:
             return jsonify({'status': 'error', 'message': 'Nombre y fecha son requeridos'}), 400
-        
-        # Convertir fecha string a datetime
         fecha_str = data['fecha']
         try:
             fecha = datetime.strptime(fecha_str, '%Y-%m-%d %H:%M:%S')
         except ValueError:
             try:
-                fecha = datetime.strptime(fecha_str, '%Y-%m-%dT%H:%M') # Para formato de datetime-local
+                fecha = datetime.strptime(fecha_str, '%Y-%m-%dT%H:%M')
             except ValueError:
                 return jsonify({'status': 'error', 'message': 'Formato de fecha inválido. Use: YYYY-MM-DD HH:MM:SS o YYYY-MM-DDTHH:MM'}), 400
-
-        # Crear nuevo evento
-        evento = Event(
-            nombre=data['nombre'],
-            fecha=fecha,
-            user_id=current_user.id  # Asignar el ID del usuario actual
-        )
-        
+        # (Temporalmente) asigno un user_id fijo (por ejemplo, 1) para pruebas
+        evento = Event(nombre=data['nombre'], fecha=fecha, user_id=1)
         db.session.add(evento)
         db.session.commit()
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Evento creado exitosamente',
-            'event': evento.to_dict()
-        }), 201
-        
+        return jsonify({'status': 'success', 'message': 'Evento creado exitosamente', 'event': evento.to_dict()}), 201
     except ValueError:
         return jsonify({'status': 'error', 'message': 'Formato de fecha inválido. Use: YYYY-MM-DD HH:MM:SS'}), 400
     except Exception as e:
