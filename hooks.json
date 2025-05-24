@@ -1,18 +1,8 @@
 [
   {
     "id": "deploy",
-    "execute-command": "/bin/sh",
-    "command-working-directory": "/opt/rcqevents-server",
-    "pass-arguments-to-command": [
-      {
-        "source": "string",
-        "name": "-c"
-      },
-      {
-        "source": "string",
-        "name": "./deploy.sh >> ./deploy.log 2>&1"
-      }
-    ]
+    "execute-command": "/bin/sh -c \"./deploy.sh >> ./deploy.log 2>&1\"",
+    "command-working-directory": "/opt/rcqevents-server"
   }
 ]
 
