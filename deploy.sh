@@ -3,9 +3,10 @@
 
 LOG_FILE="/opt/rcqevents-server/deploy.log"
 WHOAMI_USER=$(whoami) # Capturar usuario
+GIT_SAFE_DIR_CONFIG="-c safe.directory=/opt/rcqevents-server"
 
 # Intento 1: Sobrescribir el log (creándolo si no existe)
-/bin/echo "--- deploy.sh INICIADO como ${WHOAMI_USER} ---" > "${LOG_FILE}"
+/bin/echo "--- deploy.sh INICIADO como ${WHOAMI_USER} (Intentando Git con config local) ---" > "${LOG_FILE}"
 
 # Intento 2: Añadir al log, verificando el éxito
 if /bin/echo "--- Prueba de escritura adicional OK ---" >> "${LOG_FILE}"; then
@@ -24,18 +25,18 @@ echo "Directorio actual: $(pwd)" >> ${LOG_FILE}
 
 echo "Intentando operaciones de Git..." >> ${LOG_FILE}
 echo "Salida de 'git remote -v':" >> ${LOG_FILE}
-git remote -v >> ${LOG_FILE} 2>&1 || echo "Advertencia: 'git remote -v' falló (puede ser normal si el repo no está clonado o accesible)" >> ${LOG_FILE}
+git ${GIT_SAFE_DIR_CONFIG} remote -v >> ${LOG_FILE} 2>&1 || echo "Advertencia: 'git remote -v' falló" >> ${LOG_FILE}
 
 echo "Asegurando rama main..." >> ${LOG_FILE}
-git checkout main >> ${LOG_FILE} 2>&1 || { echo "FALLO: git checkout main" >> ${LOG_FILE}; exit 1; }
+git ${GIT_SAFE_DIR_CONFIG} checkout main >> ${LOG_FILE} 2>&1 || { echo "FALLO: git checkout main" >> ${LOG_FILE}; exit 1; }
 
 echo "Obteniendo cambios remotos (fetch)..." >> ${LOG_FILE}
-git fetch origin >> ${LOG_FILE} 2>&1 || { echo "FALLO: git fetch origin" >> ${LOG_FILE}; exit 1; }
+git ${GIT_SAFE_DIR_CONFIG} fetch origin >> ${LOG_FILE} 2>&1 || { echo "FALLO: git fetch origin" >> ${LOG_FILE}; exit 1; }
 
 echo "Reseteando a origin/main (reset --hard)..." >> ${LOG_FILE}
-git reset --hard origin/main >> ${LOG_FILE} 2>&1 || { echo "FALLO: git reset --hard origin/main" >> ${LOG_FILE}; exit 1; }
+git ${GIT_SAFE_DIR_CONFIG} reset --hard origin/main >> ${LOG_FILE} 2>&1 || { echo "FALLO: git reset --hard origin/main" >> ${LOG_FILE}; exit 1; }
 echo "Operaciones de Git completadas. Último commit en el servidor:" >> ${LOG_FILE}
-git log -1 --pretty=format:"%h - %s (%cr) <%an>" >> ${LOG_FILE} 2>&1
+git ${GIT_SAFE_DIR_CONFIG} log -1 --pretty=format:"%h - %s (%cr) <%an>" >> ${LOG_FILE} 2>&1
 
 echo "Activando entorno virtual..." >> ${LOG_FILE}
 source venv/bin/activate || { echo "FALLO: source venv/bin/activate" >> ${LOG_FILE}; exit 1; }
