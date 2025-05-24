@@ -18,6 +18,10 @@ def create_app(config_name='default'):
     db.init_app(app)
     migrate.init_app(app, db)
     CORS(app, resources={r"/*": {"origins": app.config['CORS_ORIGINS']}})
+
+    # Importar modelos para que Alembic los vea
+    with app.app_context():
+        from .models import user, event # Asumiendo user.py y event.py en app/models
     
     # Registrar blueprints
     from app.routes import main, auth, events
