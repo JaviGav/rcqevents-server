@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify, request, render_template_string
 from app.models.event import Event
+from app.models.user import User
 from app import db
 from datetime import datetime
+from flask_login import current_user, login_required
 
 bp = Blueprint('events', __name__, url_prefix='/events')
 
@@ -26,14 +28,18 @@ def get_events():
 def get_event(event_id):
     try:
         event = Event.query.get_or_404(event_id)
+        organizer = User.query.get(event.user_id)
+        event_data = event.to_dict()
+        event_data['organizer_name'] = organizer.username if organizer else 'Desconocido'
         return jsonify({
             'status': 'success',
-            'event': event.to_dict()
+            'event': event_data
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @bp.route('/api', methods=['POST'])
+@login_required
 def create_event():
     try:
         data = request.get_json()
@@ -43,12 +49,20 @@ def create_event():
             return jsonify({'status': 'error', 'message': 'Nombre y fecha son requeridos'}), 400
         
         # Convertir fecha string a datetime
-        fecha = datetime.strptime(data['fecha'], '%Y-%m-%d %H:%M:%S')
-        
+        fecha_str = data['fecha']
+        try:
+            fecha = datetime.strptime(fecha_str, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            try:
+                fecha = datetime.strptime(fecha_str, '%Y-%m-%dT%H:%M') # Para formato de datetime-local
+            except ValueError:
+                return jsonify({'status': 'error', 'message': 'Formato de fecha inválido. Use: YYYY-MM-DD HH:MM:SS o YYYY-MM-DDTHH:MM'}), 400
+
         # Crear nuevo evento
         evento = Event(
             nombre=data['nombre'],
-            fecha=fecha
+            fecha=fecha,
+            user_id=current_user.id  # Asignar el ID del usuario actual
         )
         
         db.session.add(evento)
