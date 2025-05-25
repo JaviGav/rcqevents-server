@@ -22,17 +22,15 @@ def create_app(config_name='default'):
     CORS(app, resources={r"/*": {"origins": app.config['CORS_ORIGINS']}})
     socketio.init_app(app, cors_allowed_origins="*")
 
-    # Importar modelos para que Alembic los vea
+    # Importar modelos para que Alembic los vea y crear tablas si no existen
     with app.app_context():
         from .models import user, event, indicativo # Asumiendo indicativo.py en app/models
+        db.create_all()
     
     # Registrar blueprints
     from app.routes import main, auth, events
     app.register_blueprint(main.bp)
     app.register_blueprint(auth.bp)
     app.register_blueprint(events.bp)
-    
-    # Crear tablas si no existen
-    db.create_all()
     
     return app 
