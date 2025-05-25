@@ -543,7 +543,7 @@ EVENT_DETAIL_TEMPLATE = """
            <b>Nombre:</b> {{ event.nombre }}<br>
            <b>Fecha:</b> {{ event.fecha }}<br>
         </p>
-        <a href='/events/admin' style='color:white;'>← Volver a administración</a>
+        <a href='/events/' style='color:white;'>← Volver a Eventos</a>
     </div>
     <div id='alertContainer'></div>
     <div class='form-container'>
