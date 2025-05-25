@@ -975,26 +975,35 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-function updateLocationMarkers() {
+function updateLocationMarkers(autoFit = false) {
     // Limpiar marcadores
     Object.values(markerRefs).forEach(m => map.removeLayer(m));
     Object.keys(markerRefs).forEach(k => delete markerRefs[k]);
+    const markerList = [];
     // Añadir solo la última ubicación de cada indicativo
     Object.values(lastLocations).forEach(msg => {
         if (msg.content.type === 'location') {
-            // Color del indicativo
             const color = msg.indicativo_color || '#3498db';
-            const isOwn = (msg.indicativo_id == indicativoId);
             const marker = L.marker([msg.content.lat, msg.content.lng], {
                 icon: L.divIcon({
                     className: 'custom-marker',
-                    html: `<div style="background:${color};width:18px;height:18px;border-radius:50%;border:2px solid #fff;"></div>`
+                    html: `<div style=\"background:${color};width:18px;height:18px;border-radius:50%;border:2px solid #fff;\"></div>`
                 })
             }).addTo(map);
             marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
             markerRefs[msg.indicativo_id] = marker;
+            markerList.push(marker);
         }
     });
+    // Centrar mapa si se solicita y hay marcadores
+    if (autoFit && markerList.length > 0) {
+        if (markerList.length === 1) {
+            map.setView(markerList[0].getLatLng(), 15);
+        } else {
+            const group = L.featureGroup(markerList);
+            map.fitBounds(group.getBounds().pad(0.2));
+        }
+    }
 }
 
 function appendMessage(msg) {
@@ -1026,7 +1035,7 @@ function appendMessage(msg) {
     }
     chatHistory.appendChild(div);
     chatHistory.scrollTop = chatHistory.scrollHeight;
-    updateLocationMarkers();
+    updateLocationMarkers(true);
 }
 
 function joinChat() {
@@ -1037,16 +1046,13 @@ function joinChat() {
     joined = true;
     socket.on('message_history', data => {
         chatHistory.innerHTML = '';
-        // Limpiar historial y marcadores
         Object.keys(lastLocations).forEach(k => delete lastLocations[k]);
         Object.keys(markerRefs).forEach(k => { map.removeLayer(markerRefs[k]); delete markerRefs[k]; });
-        // Recorrer todos los mensajes y reconstruir chat y lastLocations
         (data.messages || []).forEach(msg => {
-            // Actualiza el chat
             appendMessage(msg);
         });
         chatHistory.scrollTop = chatHistory.scrollHeight;
-        updateLocationMarkers();
+        updateLocationMarkers(true);
     });
     socket.on('new_message', msg => {
         appendMessage(msg);
