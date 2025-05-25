@@ -985,7 +985,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 // --- Auto-centro del mapa ---
 let autoCenter = true;
-let isProgrammaticMove = false;
+let programmaticMoves = 0;
 
 // Botón de auto-centro
 const autoCenterBtn = document.createElement('button');
@@ -1019,21 +1019,20 @@ autoCenterBtn.addEventListener('click', function() {
     autoCenter = !autoCenter;
     updateAutoCenterBtn();
     if (autoCenter) {
-        isProgrammaticMove = true;
+        programmaticMoves++;
         updateLocationMarkers(true);
-        setTimeout(() => { isProgrammaticMove = false; }, 400);
     }
 });
 
 map.on('movestart zoomstart', function(e) {
-    if (autoCenter && !isProgrammaticMove) {
+    if (autoCenter && programmaticMoves === 0) {
         autoCenter = false;
         updateAutoCenterBtn();
     }
 });
 map.on('moveend zoomend', function(e) {
-    if (isProgrammaticMove) {
-        isProgrammaticMove = false;
+    if (programmaticMoves > 0) {
+        programmaticMoves--;
     }
 });
 
@@ -1059,7 +1058,7 @@ function updateLocationMarkers(autoFit = false) {
     });
     // Centrar mapa si se solicita y hay marcadores
     if (autoFit && markerList.length > 0) {
-        isProgrammaticMove = true;
+        programmaticMoves++;
         if (markerList.length === 1) {
             map.setView(markerList[0].getLatLng(), 15);
         } else {
@@ -1134,9 +1133,8 @@ function joinChat() {
             appendMessage(msg);
         });
         chatHistory.scrollTop = chatHistory.scrollHeight;
-        isProgrammaticMove = true;
+        programmaticMoves++;
         updateLocationMarkers(true);
-        setTimeout(() => { isProgrammaticMove = false; }, 400);
     });
     socket.on('new_message', msg => {
         appendMessage(msg);
