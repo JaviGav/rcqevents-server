@@ -292,7 +292,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
 
     <div class="form-container">
         <h2 id="formTitle">Agregar Nuevo Evento</h2>
-        <form id="eventForm">
+        <form id="eventForm" style="display:none;">
             <input type="hidden" id="eventId" value="">
             <div class="form-group">
                 <label for="nombre">Nombre del Evento:</label>
@@ -302,13 +302,14 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
                 <label for="fecha">Fecha y Hora:</label>
                 <input type="datetime-local" id="fecha" name="fecha" required>
             </div>
-            <button type="submit" id="submitBtn">Agregar Evento</button>
+            <button type="submit" id="submitBtn">Actualizar Evento</button>
             <button type="button" id="cancelBtn" onclick="cancelEdit()" style="display: none;">Cancelar</button>
         </form>
     </div>
 
     <div class="events-container">
         <h2>Lista de Eventos</h2>
+        <button id="addEventBtn">Añadir Evento</button>
         <table id="eventsTable">
             <thead>
                 <tr>
@@ -328,6 +329,13 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
 
         document.addEventListener('DOMContentLoaded', function() {
             loadEvents();
+        });
+
+        document.getElementById('addEventBtn').addEventListener('click', function() {
+            document.getElementById('eventForm').style.display = 'block';
+            document.getElementById('formTitle').textContent = 'Agregar Nuevo Evento';
+            document.getElementById('submitBtn').textContent = 'Agregar Evento';
+            editingEventId = null;
         });
 
         document.getElementById('eventForm').addEventListener('submit', function(e) {
@@ -548,7 +556,7 @@ EVENT_DETAIL_TEMPLATE = """
     <div id='alertContainer'></div>
     <div class='form-container'>
         <h2 id='formTitle'>Agregar Indicativo</h2>
-        <form id='indicativoForm'>
+        <form id='indicativoForm' style="display:none;">
             <input type='hidden' id='indicativoId' value=''>
             <div class='form-group'>
                 <label for='indicativo'>Indicativo:</label>
@@ -570,12 +578,13 @@ EVENT_DETAIL_TEMPLATE = """
                 <label for='fecha_fin'>Fecha Fin:</label>
                 <input type='datetime-local' id='fecha_fin' name='fecha_fin'>
             </div>
-            <button type='submit' id='submitBtn'>Agregar Indicativo</button>
+            <button type='submit' id='submitBtn'>Actualizar Indicativo</button>
             <button type='button' id='cancelBtn' onclick='cancelEdit()' style='display: none;'>Cancelar</button>
         </form>
     </div>
     <div class='indicativos-container'>
         <h2>Lista de Indicativos</h2>
+        <button id="addIndicativoBtn">Añadir Indicativo</button>
         <table id='indicativosTable'>
             <thead>
                 <tr>
@@ -596,6 +605,12 @@ EVENT_DETAIL_TEMPLATE = """
         let editingIndicativoId = null;
         document.addEventListener('DOMContentLoaded', function() {
             loadIndicativos();
+        });
+        document.getElementById('addIndicativoBtn').addEventListener('click', function() {
+            document.getElementById('indicativoForm').style.display = 'block';
+            document.getElementById('formTitle').textContent = 'Agregar Nuevo Indicativo';
+            document.getElementById('submitBtn').textContent = 'Agregar Indicativo';
+            editingIndicativoId = null;
         });
         document.getElementById('indicativoForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -729,7 +744,7 @@ EVENT_DETAIL_TEMPLATE = """
             editingIndicativoId = null;
             document.getElementById('indicativoForm').reset();
             document.getElementById('indicativoId').value = '';
-            document.getElementById('formTitle').textContent = 'Agregar Indicativo';
+            document.getElementById('formTitle').textContent = 'Agregar Nuevo Indicativo';
             document.getElementById('submitBtn').textContent = 'Agregar Indicativo';
             document.getElementById('cancelBtn').style.display = 'none';
         }
