@@ -950,6 +950,31 @@ indicativoSelect.addEventListener('change', function() {
 let socket = null;
 let joined = false;
 const chatHistory = document.getElementById('chatHistory');
+// --- MAPA DE LOCALIZACIONES: solo última ubicación de cada indicativo ---
+const lastLocations = {}; // indicativo_id -> msg
+const markerRefs = {}; // indicativo_id -> marker
+let selectedMarker = null;
+
+function updateLocationMarkers() {
+    // Limpiar marcadores
+    Object.values(markerRefs).forEach(m => map.removeLayer(m));
+    Object.keys(markerRefs).forEach(k => delete markerRefs[k]);
+    // Añadir solo la última ubicación de cada indicativo
+    Object.values(lastLocations).forEach(msg => {
+        if (msg.content.type === 'location') {
+            const marker = L.marker([msg.content.lat, msg.content.lng], {
+                icon: (msg.indicativo_id == indicativoId) ? L.icon({
+                    iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-violet.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+                    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+                }) : undefined
+            }).addTo(map);
+            marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
+            markerRefs[msg.indicativo_id] = marker;
+        }
+    });
+}
+
 function appendMessage(msg) {
     const div = document.createElement('div');
     div.className = 'message' + (msg.content.type === 'location' ? ' location' : '');
@@ -958,29 +983,41 @@ function appendMessage(msg) {
         div.innerHTML += `<div class="content">${msg.content.text}</div>`;
     } else if (msg.content.type === 'location') {
         div.innerHTML += `<div class="content">📍 Ubicación: (${msg.content.lat}, ${msg.content.lng})</div>`;
-    } else {
-        div.innerHTML += `<div class="content">[${msg.content.type}]</div>`;
+        // Guardar última ubicación
+        lastLocations[msg.indicativo_id] = msg;
+        div.style.cursor = 'pointer';
+        div.addEventListener('click', function() {
+            // Centrar y resaltar marcador
+            const marker = markerRefs[msg.indicativo_id];
+            if (marker) {
+                map.setView([msg.content.lat, msg.content.lng], 15);
+                marker.openPopup();
+                if (selectedMarker) selectedMarker.setZIndexOffset(0);
+                marker.setZIndexOffset(1000);
+                selectedMarker = marker;
+            }
+        });
     }
     chatHistory.appendChild(div);
     chatHistory.scrollTop = chatHistory.scrollHeight;
+    updateLocationMarkers();
 }
-// Mapa Leaflet
-const map = L.map('map').setView([40.4168, -3.7038], 6);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-}).addTo(map);
-const markers = [];
-function addLocationMarker(msg) {
-    if (msg.content.type === 'location') {
-        const marker = L.marker([msg.content.lat, msg.content.lng]).addTo(map);
-        marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
-        markers.push(marker);
-    }
-}
-function clearMarkers() {
-    markers.forEach(m => map.removeLayer(m));
-    markers.length = 0;
-}
+
+// En historial, reconstruir lastLocations y marcadores
+socket.on('message_history', data => {
+    chatHistory.innerHTML = '';
+    Object.keys(lastLocations).forEach(k => delete lastLocations[k]);
+    Object.keys(markerRefs).forEach(k => { map.removeLayer(markerRefs[k]); delete markerRefs[k]; });
+    (data.messages || []).forEach(msg => {
+        appendMessage(msg);
+    });
+    updateLocationMarkers();
+});
+socket.on('new_message', msg => {
+    appendMessage(msg);
+    // updateLocationMarkers() ya se llama en appendMessage
+});
+
 function joinChat() {
     if (!indicativoId) return;
     if (socket) socket.disconnect();
@@ -989,16 +1026,11 @@ function joinChat() {
     joined = true;
     socket.on('message_history', data => {
         chatHistory.innerHTML = '';
-        clearMarkers();
-        (data.messages || []).forEach(msg => {
-            appendMessage(msg);
-            addLocationMarker(msg);
-        });
+        updateLocationMarkers();
     });
     socket.on('new_message', msg => {
         appendMessage(msg);
         addLocationModal.style.display = 'none';
-        addLocationMarker(msg);
     });
     socket.on('error', err => {
         alert(err.message);
