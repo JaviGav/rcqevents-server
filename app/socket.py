@@ -36,9 +36,10 @@ def handle_join_event(data):
     if not indicativo:
         emit('error', {'message': 'Indicativo no encontrado o no pertenece al evento'})
         return
-    # Unirse a la sala del evento
+    # Unirse a la sala del evento y a la sala privada del indicativo
     room = f'event_{event_id}'
     join_room(room)
+    join_room(f'indicativo_{indicativo_id}_event_{event_id}')
     # Enviar historial de mensajes
     messages = Message.query.filter_by(event_id=event_id).order_by(Message.timestamp.asc()).all()
     emit('message_history', {'messages': [msg.to_dict() for msg in messages]})
@@ -68,6 +69,7 @@ def handle_send_message(data):
     event_id = data.get('event_id')
     indicativo_id = data.get('indicativo_id')
     content = data.get('content')
+    to_indicativo_id = data.get('to_indicativo_id')
     
     if not all([event_id, indicativo_id, content]):
         emit('error', {'message': 'Faltan campos requeridos'})
@@ -92,6 +94,13 @@ def handle_send_message(data):
     if not indicativo:
         emit('error', {'message': 'Indicativo no encontrado o no pertenece al evento'})
         return
+    # Si es privado, verificar que el destinatario existe y pertenece al evento
+    to_indicativo = None
+    if to_indicativo_id:
+        to_indicativo = Indicativo.query.filter_by(id=to_indicativo_id, event_id=event_id).first()
+        if not to_indicativo:
+            emit('error', {'message': 'Indicativo destinatario no encontrado o no pertenece al evento'})
+            return
     # Crear y guardar el mensaje
     message = Message(
         event_id=event_id,
@@ -100,6 +109,18 @@ def handle_send_message(data):
     )
     db.session.add(message)
     db.session.commit()
-    # Enviar el mensaje a todos en la sala
-    room = f'event_{event_id}'
-    emit('new_message', message.to_dict(), room=room) 
+    # Preparar el mensaje para emitir
+    msg_dict = message.to_dict()
+    msg_dict['to_indicativo_id'] = to_indicativo_id
+    # Emitir el mensaje
+    if to_indicativo_id:
+        # Mensaje privado: solo al emisor y destinatario
+        room_emisor = f'indicativo_{indicativo_id}_event_{event_id}'
+        room_dest = f'indicativo_{to_indicativo_id}_event_{event_id}'
+        emit('new_message', msg_dict, room=room_emisor)
+        if to_indicativo_id != str(indicativo_id):
+            emit('new_message', msg_dict, room=room_dest)
+    else:
+        # Mensaje público: a toda la sala del evento
+        room = f'event_{event_id}'
+        emit('new_message', msg_dict, room=room) 
