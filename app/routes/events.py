@@ -984,16 +984,15 @@ function updateLocationMarkers() {
 function appendMessage(msg) {
     const div = document.createElement('div');
     div.className = 'message' + (msg.content.type === 'location' ? ' location' : '');
-    div.innerHTML = `<div class="meta"><b>${msg.indicativo || ''}</b> <span>${msg.timestamp}</span></div>`;
+    div.innerHTML = `<div class=\"meta\"><b>${msg.indicativo || ''}</b> <span>${msg.timestamp}</span></div>`;
     if (msg.content.type === 'text') {
-        div.innerHTML += `<div class="content">${msg.content.text}</div>`;
+        div.innerHTML += `<div class=\"content\">${msg.content.text}</div>`;
     } else if (msg.content.type === 'location') {
-        div.innerHTML += `<div class="content">📍 Ubicación: (${msg.content.lat}, ${msg.content.lng})</div>`;
+        div.innerHTML += `<div class=\"content\">📍 Ubicación: (${msg.content.lat}, ${msg.content.lng})</div>`;
         // Guardar última ubicación
         lastLocations[msg.indicativo_id] = msg;
         div.style.cursor = 'pointer';
         div.addEventListener('click', function() {
-            // Centrar y resaltar marcador
             const marker = markerRefs[msg.indicativo_id];
             if (marker) {
                 map.setView([msg.content.lat, msg.content.lng], 15);
@@ -1003,6 +1002,8 @@ function appendMessage(msg) {
                 selectedMarker = marker;
             }
         });
+    } else {
+        div.innerHTML += `<div class=\"content\">[${msg.content.type}]</div>`;
     }
     chatHistory.appendChild(div);
     chatHistory.scrollTop = chatHistory.scrollHeight;
@@ -1017,11 +1018,15 @@ function joinChat() {
     joined = true;
     socket.on('message_history', data => {
         chatHistory.innerHTML = '';
+        // Limpiar historial y marcadores
         Object.keys(lastLocations).forEach(k => delete lastLocations[k]);
         Object.keys(markerRefs).forEach(k => { map.removeLayer(markerRefs[k]); delete markerRefs[k]; });
+        // Recorrer todos los mensajes y reconstruir chat y lastLocations
         (data.messages || []).forEach(msg => {
+            // Actualiza el chat
             appendMessage(msg);
         });
+        chatHistory.scrollTop = chatHistory.scrollHeight;
         updateLocationMarkers();
     });
     socket.on('new_message', msg => {
