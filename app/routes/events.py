@@ -157,6 +157,11 @@ def delete_indicativo(event_id, indicativo_id):
     db.session.commit()
     return jsonify({'status': 'success', 'message': 'Indicativo eliminado'})
 
+@bp.route('/<int:event_id>')
+def event_detail(event_id):
+    event = Event.query.get_or_404(event_id)
+    return render_template_string(EVENT_DETAIL_TEMPLATE, event=event)
+
 # Template HTML para la página de administración (parte 1)
 ADMIN_TEMPLATE_PART1 = """
 <!DOCTYPE html>
@@ -483,6 +488,246 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
             setTimeout(() => {
                 alert.remove();
             }, 5000);
+        }
+    </script>
+</body>
+</html>
+"""
+
+EVENT_DETAIL_TEMPLATE = """
+<!DOCTYPE html>
+<html lang='es'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Detalle de Evento</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        .header { background-color: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .form-container, .indicativos-container { background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type='text'], input[type='datetime-local'] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        button { background-color: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; }
+        button:hover { background-color: #2980b9; }
+        button.delete { background-color: #e74c3c; }
+        button.delete:hover { background-color: #c0392b; }
+        button.edit { background-color: #f39c12; }
+        button.edit:hover { background-color: #e67e22; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; font-weight: bold; }
+        tr:hover { background-color: #f5f5f5; }
+        .alert { padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px; }
+        .alert-success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
+        .alert-error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class='header'>
+        <h1>Detalle de Evento</h1>
+        <p><b>ID:</b> {{ event.id }}<br>
+           <b>Nombre:</b> {{ event.nombre }}<br>
+           <b>Fecha:</b> {{ event.fecha }}<br>
+        </p>
+        <a href='/events/admin' style='color:white;'>← Volver a administración</a>
+    </div>
+    <div id='alertContainer'></div>
+    <div class='form-container'>
+        <h2 id='formTitle'>Agregar Indicativo</h2>
+        <form id='indicativoForm'>
+            <input type='hidden' id='indicativoId' value=''>
+            <div class='form-group'>
+                <label for='indicativo'>Indicativo:</label>
+                <input type='text' id='indicativo' name='indicativo' required>
+            </div>
+            <div class='form-group'>
+                <label for='nombre'>Nombre:</label>
+                <input type='text' id='nombre' name='nombre'>
+            </div>
+            <div class='form-group'>
+                <label for='localizacion'>Localización:</label>
+                <input type='text' id='localizacion' name='localizacion'>
+            </div>
+            <div class='form-group'>
+                <label for='fecha_inicio'>Fecha Inicio:</label>
+                <input type='datetime-local' id='fecha_inicio' name='fecha_inicio'>
+            </div>
+            <div class='form-group'>
+                <label for='fecha_fin'>Fecha Fin:</label>
+                <input type='datetime-local' id='fecha_fin' name='fecha_fin'>
+            </div>
+            <button type='submit' id='submitBtn'>Agregar Indicativo</button>
+            <button type='button' id='cancelBtn' onclick='cancelEdit()' style='display: none;'>Cancelar</button>
+        </form>
+    </div>
+    <div class='indicativos-container'>
+        <h2>Lista de Indicativos</h2>
+        <table id='indicativosTable'>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Indicativo</th>
+                    <th>Nombre</th>
+                    <th>Localización</th>
+                    <th>Fecha Inicio</th>
+                    <th>Fecha Fin</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id='indicativosTableBody'>
+            </tbody>
+        </table>
+    </div>
+    <script>
+        let editingIndicativoId = null;
+        document.addEventListener('DOMContentLoaded', function() {
+            loadIndicativos();
+        });
+        document.getElementById('indicativoForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const indicativo = document.getElementById('indicativo').value;
+            const nombre = document.getElementById('nombre').value;
+            const localizacion = document.getElementById('localizacion').value;
+            const fecha_inicio = document.getElementById('fecha_inicio').value;
+            const fecha_fin = document.getElementById('fecha_fin').value;
+            const data = {
+                indicativo,
+                nombre,
+                localizacion,
+                fecha_inicio: fecha_inicio ? fecha_inicio.replace('T', ' ') + ':00' : null,
+                fecha_fin: fecha_fin ? fecha_fin.replace('T', ' ') + ':00' : null
+            };
+            if (editingIndicativoId) {
+                updateIndicativo(editingIndicativoId, data);
+            } else {
+                createIndicativo(data);
+            }
+        });
+        function loadIndicativos() {
+            fetch(`/events/{{ event.id }}/indicativos/api`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayIndicativos(data.indicativos);
+                    } else {
+                        showAlert('Error al cargar indicativos: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error de conexión: ' + error.message, 'error');
+                });
+        }
+        function displayIndicativos(indicativos) {
+            const tbody = document.getElementById('indicativosTableBody');
+            tbody.innerHTML = '';
+            indicativos.forEach(indicativo => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${indicativo.id}</td>
+                    <td>${indicativo.indicativo || ''}</td>
+                    <td>${indicativo.nombre || ''}</td>
+                    <td>${indicativo.localizacion || ''}</td>
+                    <td>${indicativo.fecha_inicio || ''}</td>
+                    <td>${indicativo.fecha_fin || ''}</td>
+                    <td>
+                        <button class='edit' onclick="editIndicativo(${indicativo.id}, '${indicativo.indicativo || ''}', '${indicativo.nombre || ''}', '${indicativo.localizacion || ''}', '${indicativo.fecha_inicio || ''}', '${indicativo.fecha_fin || ''}')">Editar</button>
+                        <button class='delete' onclick='deleteIndicativo(${indicativo.id})'>Eliminar</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        function createIndicativo(data) {
+            fetch(`/events/{{ event.id }}/indicativos/api`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Indicativo creado exitosamente', 'success');
+                    resetForm();
+                    loadIndicativos();
+                } else {
+                    showAlert('Error al crear indicativo: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Error de conexión: ' + error.message, 'error');
+            });
+        }
+        function editIndicativo(id, indicativo, nombre, localizacion, fecha_inicio, fecha_fin) {
+            editingIndicativoId = id;
+            document.getElementById('indicativoId').value = id;
+            document.getElementById('indicativo').value = indicativo;
+            document.getElementById('nombre').value = nombre;
+            document.getElementById('localizacion').value = localizacion;
+            document.getElementById('fecha_inicio').value = fecha_inicio ? fecha_inicio.replace(' ', 'T').slice(0,16) : '';
+            document.getElementById('fecha_fin').value = fecha_fin ? fecha_fin.replace(' ', 'T').slice(0,16) : '';
+            document.getElementById('formTitle').textContent = 'Editar Indicativo';
+            document.getElementById('submitBtn').textContent = 'Actualizar Indicativo';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+        }
+        function updateIndicativo(id, data) {
+            fetch(`/events/{{ event.id }}/indicativos/api/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Indicativo actualizado exitosamente', 'success');
+                    resetForm();
+                    loadIndicativos();
+                } else {
+                    showAlert('Error al actualizar indicativo: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Error de conexión: ' + error.message, 'error');
+            });
+        }
+        function deleteIndicativo(id) {
+            if (confirm('¿Estás seguro de que quieres eliminar este indicativo?')) {
+                fetch(`/events/{{ event.id }}/indicativos/api/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showAlert('Indicativo eliminado exitosamente', 'success');
+                        loadIndicativos();
+                    } else {
+                        showAlert('Error al eliminar indicativo: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error de conexión: ' + error.message, 'error');
+                });
+            }
+        }
+        function cancelEdit() {
+            resetForm();
+        }
+        function resetForm() {
+            editingIndicativoId = null;
+            document.getElementById('indicativoForm').reset();
+            document.getElementById('indicativoId').value = '';
+            document.getElementById('formTitle').textContent = 'Agregar Indicativo';
+            document.getElementById('submitBtn').textContent = 'Agregar Indicativo';
+            document.getElementById('cancelBtn').style.display = 'none';
+        }
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+            setTimeout(() => { alert.remove(); }, 5000);
         }
     </script>
 </body>
