@@ -292,7 +292,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
 
     <div class="form-container">
         <h2 id="formTitle">Agregar Nuevo Evento</h2>
-        <form id="eventForm" style="display:none;">
+        <form id="eventForm">
             <input type="hidden" id="eventId" value="">
             <div class="form-group">
                 <label for="nombre">Nombre del Evento:</label>
@@ -303,7 +303,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
                 <input type="datetime-local" id="fecha" name="fecha" required>
             </div>
             <button type="submit" id="submitBtn">Actualizar Evento</button>
-            <button type="button" id="cancelBtn" onclick="cancelEdit()" style="display: none;">Cancelar</button>
+            <button type="button" id="cancelBtn" onclick="cancelEdit()">Cancelar</button>
         </form>
     </div>
 
@@ -556,7 +556,7 @@ EVENT_DETAIL_TEMPLATE = """
     <div id='alertContainer'></div>
     <div class='form-container'>
         <h2 id='formTitle'>Agregar Indicativo</h2>
-        <form id='indicativoForm' style="display:none;">
+        <form id='indicativoForm'>
             <input type='hidden' id='indicativoId' value=''>
             <div class='form-group'>
                 <label for='indicativo'>Indicativo:</label>
@@ -579,7 +579,7 @@ EVENT_DETAIL_TEMPLATE = """
                 <input type='datetime-local' id='fecha_fin' name='fecha_fin'>
             </div>
             <button type='submit' id='submitBtn'>Actualizar Indicativo</button>
-            <button type='button' id='cancelBtn' onclick='cancelEdit()' style='display: none;'>Cancelar</button>
+            <button type='button' id='cancelBtn' onclick='cancelEdit()'>Cancelar</button>
         </form>
     </div>
     <div class='indicativos-container'>
