@@ -1021,6 +1021,7 @@ autoCenterBtn.addEventListener('click', function() {
     if (autoCenter) {
         isProgrammaticMove = true;
         updateLocationMarkers(true);
+        setTimeout(() => { isProgrammaticMove = false; }, 400);
     }
 });
 
@@ -1135,6 +1136,7 @@ function joinChat() {
         chatHistory.scrollTop = chatHistory.scrollHeight;
         isProgrammaticMove = true;
         updateLocationMarkers(true);
+        setTimeout(() => { isProgrammaticMove = false; }, 400);
     });
     socket.on('new_message', msg => {
         appendMessage(msg);
