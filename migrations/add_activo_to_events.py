@@ -7,19 +7,20 @@ sys.path.append(root_dir)
 
 from app import db, create_app
 from app.models.event import Event
+from sqlalchemy import text
 
 def upgrade():
     app = create_app()
     with app.app_context():
         # Añadir columna activo con valor por defecto True
-        db.session.execute('ALTER TABLE events ADD COLUMN activo BOOLEAN NOT NULL DEFAULT TRUE')
+        db.session.execute(text('ALTER TABLE events ADD COLUMN activo BOOLEAN NOT NULL DEFAULT TRUE'))
         db.session.commit()
 
 def downgrade():
     app = create_app()
     with app.app_context():
         # Eliminar columna activo
-        db.session.execute('ALTER TABLE events DROP COLUMN activo')
+        db.session.execute(text('ALTER TABLE events DROP COLUMN activo'))
         db.session.commit()
 
 if __name__ == '__main__':
