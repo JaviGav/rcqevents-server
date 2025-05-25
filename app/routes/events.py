@@ -265,6 +265,25 @@ ADMIN_TEMPLATE_PART1 = """
         button.manage:hover {
             background-color: #219150;
         }
+        button.control {
+            background-color: #8e44ad;
+        }
+        button.control:hover, a.control:hover {
+            background-color: #6c3483;
+        }
+        a.control {
+            display: inline-block;
+            background-color: #8e44ad;
+            color: white !important;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 5px;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -436,7 +455,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
                         </span>
                     </td>
                     <td>
-                        <a class="manage" href="/events/${event.id}/control" style="margin-right:5px;">Control</a>
+                        <a class="control" href="/events/${event.id}/control">Control</a>
                         <button class="manage" onclick="window.location='/events/${event.id}'">Gestionar</button>
                         <button class="edit" onclick="editEvent(${event.id}, '${event.nombre}', '${event.fecha}')">Editar</button>
                         <button class="delete" onclick="deleteEvent(${event.id})">Eliminar</button>
