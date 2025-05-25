@@ -922,7 +922,9 @@ EVENT_CONTROL_TEMPLATE = '''
         <div class="map-panel">
             <h3>Localizaciones</h3>
             <div style="position:relative;">
-                <button id="fitMarkersBtn" title="Centrar mapa" style="position:absolute;top:10px;right:10px;z-index:1001;background:#8e44ad;color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:20px;box-shadow:0 2px 6px rgba(0,0,0,0.15);cursor:pointer;">🧭</button>
+                <button id="fitMarkersBtn" title="Centrar mapa" class="leaflet-control leaflet-bar" style="position:absolute;top:10px;right:10px;z-index:1001;width:34px;height:34px;line-height:32px;font-size:20px;padding:0;display:flex;align-items:center;justify-content:center;">
+                    🧭
+                </button>
                 <div id="map"></div>
             </div>
         </div>
