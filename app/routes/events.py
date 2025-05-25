@@ -110,6 +110,21 @@ def delete_event(event_id):
         db.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@bp.route('/api/<int:event_id>/toggle', methods=['POST'])
+def toggle_event(event_id):
+    try:
+        event = Event.query.get_or_404(event_id)
+        event.activo = not event.activo
+        db.session.commit()
+        return jsonify({
+            'status': 'success',
+            'message': 'Evento ' + ('activado' if event.activo else 'desactivado') + ' exitosamente',
+            'event': event.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 # --- API de Indicativos ---
 @bp.route('/<int:event_id>/indicativos/api', methods=['GET'])
 def get_indicativos(event_id):
@@ -277,6 +292,21 @@ ADMIN_TEMPLATE_PART1 = """
             background-color: #f8d7da;
             border-color: #f5c6cb;
         }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .status-active {
+            background-color: #27ae60;
+            color: white;
+        }
+        .status-inactive {
+            background-color: #e74c3c;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -316,6 +346,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
                     <th>ID</th>
                     <th>Nombre</th>
                     <th>Fecha</th>
+                    <th>Estado</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -392,6 +423,12 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
                     <td>${event.id}</td>
                     <td>${event.nombre}</td>
                     <td>${new Date(event.fecha).toLocaleString('es-ES')}</td>
+                    <td>
+                        <span class="status-badge ${event.activo ? 'status-active' : 'status-inactive'}" 
+                              onclick="toggleEvent(${event.id}, ${event.activo})">
+                            ${event.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                    </td>
                     <td>
                         <button class="manage" onclick="window.location='/events/${event.id}'">Gestionar</button>
                         <button class="edit" onclick="editEvent(${event.id}, '${event.nombre}', '${event.fecha}')">Editar</button>
@@ -509,6 +546,26 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
             setTimeout(() => {
                 alert.remove();
             }, 5000);
+        }
+
+        function toggleEvent(id, currentStatus) {
+            if (confirm(`¿Estás seguro de que quieres ${currentStatus ? 'desactivar' : 'activar'} este evento?`)) {
+                fetch(`/events/api/${id}/toggle`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showAlert(data.message, 'success');
+                        loadEvents();
+                    } else {
+                        showAlert('Error al cambiar estado: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error de conexión: ' + error.message, 'error');
+                });
+            }
         }
     </script>
 </body>

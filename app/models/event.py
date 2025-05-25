@@ -8,6 +8,7 @@ class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
     fecha = db.Column(db.DateTime, nullable=False)
+    activo = db.Column(db.Boolean, default=True, nullable=False)
     
     # Nueva columna para la clave foránea
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -23,7 +24,8 @@ class Event(db.Model):
             'id': self.id,
             'nombre': self.nombre,
             'fecha': (fecha_madrid.strftime('%Y-%m-%d %H:%M:%S') if fecha_madrid else None),
-            'user_id': self.user_id
+            'user_id': self.user_id,
+            'activo': self.activo
         }
         # Si quieres incluir datos del organizador (User) aquí, puedes hacerlo si la relación está cargada
         # if self.organizer:
