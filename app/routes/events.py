@@ -1286,6 +1286,12 @@ document.getElementById('fitMarkersBtn').addEventListener('click', function() {
         map.fitBounds(group.getBounds().pad(0.2));
     }
 });
+addressInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        searchAddressBtn.click();
+    }
+});
 </script>
 </body>
 </html>
