@@ -1058,7 +1058,7 @@ function appendMessage(msg) {
     }
     chatHistory.appendChild(div);
     chatHistory.scrollTop = chatHistory.scrollHeight;
-    updateLocationMarkers(true);
+    updateLocationMarkers(false);
 }
 
 function joinChat() {
