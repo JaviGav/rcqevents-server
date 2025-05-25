@@ -41,6 +41,7 @@ class Message(db.Model):
             'indicativo_id': self.indicativo_id,
             'indicativo': self.indicativo.indicativo if self.indicativo else None,
             'nombre': self.indicativo.nombre if self.indicativo else None,
+            'indicativo_color': self.indicativo.color if self.indicativo and self.indicativo.color else None,
             'content': self.content if isinstance(self.content, dict) else {},
             'timestamp': self.timestamp.strftime('%Y-%m-%d %H:%M:%S')
         } 
