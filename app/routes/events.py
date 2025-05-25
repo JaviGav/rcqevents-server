@@ -968,12 +968,17 @@ function updateLocationMarkers() {
     // Añadir solo la última ubicación de cada indicativo
     Object.values(lastLocations).forEach(msg => {
         if (msg.content.type === 'location') {
+            const isOwn = (msg.indicativo_id == indicativoId);
             const marker = L.marker([msg.content.lat, msg.content.lng], {
-                icon: (msg.indicativo_id == indicativoId) ? L.icon({
+                icon: isOwn ? L.icon({
                     iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-violet.png',
                     shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
                     iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-                }) : undefined
+                }) : L.icon({
+                    iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-blue.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+                    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+                })
             }).addTo(map);
             marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
             markerRefs[msg.indicativo_id] = marker;
