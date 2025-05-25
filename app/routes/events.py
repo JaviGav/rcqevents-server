@@ -913,6 +913,26 @@ EVENT_CONTROL_TEMPLATE = '''
             <div id="map"></div>
         </div>
     </div>
+    <!-- Modal de ubicación manual -->
+    <div id="locationModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:8px; max-width:500px; width:95vw; margin:40px auto; padding:20px; position:relative;">
+            <button id="closeLocationModal" style="position:absolute; top:10px; right:10px; background:#e74c3c; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:18px; cursor:pointer;">&times;</button>
+            <h2>Enviar ubicación manualmente</h2>
+            <div style="margin-bottom:10px;">
+                <label><b>Buscar dirección:</b></label>
+                <input type="text" id="addressInput" placeholder="Ej: Plaça Catalunya, Barcelona" style="width:80%;">
+                <button type="button" id="searchAddressBtn">Buscar</button>
+            </div>
+            <div style="margin-bottom:10px;">
+                <label><b>Latitud:</b></label>
+                <input type="number" id="latInput" step="any" style="width:40%;">
+                <label><b>Longitud:</b></label>
+                <input type="number" id="lngInput" step="any" style="width:40%;">
+            </div>
+            <div id="manualMap" style="height:250px; width:100%; margin-bottom:10px; border-radius:8px;"></div>
+            <button type="button" id="sendManualLocationBtn" style="background:#8e44ad; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Enviar ubicación</button>
+        </div>
+    </div>
 </div>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -977,6 +997,7 @@ function joinChat() {
     });
     socket.on('new_message', msg => {
         appendMessage(msg);
+        addLocationModal.style.display = 'none';
         addLocationMarker(msg);
     });
     socket.on('error', err => {
@@ -999,20 +1020,103 @@ document.getElementById('chatForm').addEventListener('submit', function(e) {
     });
     document.getElementById('chatInput').value = '';
 });
+// --- MODAL UBICACIÓN MANUAL ---
+const locationModal = document.getElementById('locationModal');
+const closeLocationModal = document.getElementById('closeLocationModal');
+const addressInput = document.getElementById('addressInput');
+const searchAddressBtn = document.getElementById('searchAddressBtn');
+const latInput = document.getElementById('latInput');
+const lngInput = document.getElementById('lngInput');
+const sendManualLocationBtn = document.getElementById('sendManualLocationBtn');
+let manualMap, manualMarker;
+
+function openLocationModal() {
+    locationModal.style.display = 'flex';
+    // Centrar en Barcelona
+    if (!manualMap) {
+        manualMap = L.map('manualMap').setView([41.3874, 2.1686], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(manualMap);
+        manualMap.on('click', function(e) {
+            setManualMarker(e.latlng.lat, e.latlng.lng);
+        });
+    } else {
+        manualMap.setView([41.3874, 2.1686], 13);
+    }
+    if (manualMarker) manualMap.removeLayer(manualMarker);
+    latInput.value = '';
+    lngInput.value = '';
+    addressInput.value = '';
+}
+function closeLocationModalFn() {
+    locationModal.style.display = 'none';
+}
+function setManualMarker(lat, lng) {
+    if (manualMarker) manualMap.removeLayer(manualMarker);
+    manualMarker = L.marker([lat, lng]).addTo(manualMap);
+    latInput.value = lat;
+    lngInput.value = lng;
+}
+searchAddressBtn.addEventListener('click', function() {
+    const address = addressInput.value.trim();
+    if (!address) return;
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`)
+        .then(r => r.json())
+        .then(results => {
+            if (results && results.length > 0) {
+                const { lat, lon } = results[0];
+                setManualMarker(parseFloat(lat), parseFloat(lon));
+                manualMap.setView([lat, lon], 16);
+            } else {
+                alert('Dirección no encontrada');
+            }
+        });
+});
+latInput.addEventListener('change', function() {
+    const lat = parseFloat(latInput.value);
+    const lng = parseFloat(lngInput.value);
+    if (!isNaN(lat) && !isNaN(lng)) setManualMarker(lat, lng);
+});
+lngInput.addEventListener('change', function() {
+    const lat = parseFloat(latInput.value);
+    const lng = parseFloat(lngInput.value);
+    if (!isNaN(lat) && !isNaN(lng)) setManualMarker(lat, lng);
+});
+closeLocationModal.addEventListener('click', closeLocationModalFn);
+sendManualLocationBtn.addEventListener('click', function() {
+    const lat = parseFloat(latInput.value);
+    const lng = parseFloat(lngInput.value);
+    if (isNaN(lat) || isNaN(lng)) return alert('Introduce una latitud y longitud válidas');
+    if (!indicativoId) return alert('Selecciona un indicativo');
+    socket.emit('send_message', {
+        event_id: eventId,
+        indicativo_id: indicativoId,
+        content: { type: 'location', lat, lng }
+    });
+    closeLocationModalFn();
+});
 document.getElementById('sendLocationBtn').addEventListener('click', function() {
     if (!indicativoId) return alert('Selecciona un indicativo');
-    if (!navigator.geolocation) return alert('Geolocalización no soportada');
-    navigator.geolocation.getCurrentPosition(function(pos) {
-        const { latitude, longitude } = pos.coords;
-        socket.emit('send_message', {
-            event_id: eventId,
-            indicativo_id: indicativoId,
-            content: { type: 'location', lat: latitude, lng: longitude }
+    // Solo móvil: usar geolocalización
+    if (/Mobi|Android/i.test(navigator.userAgent)) {
+        if (!navigator.geolocation) return alert('Geolocalización no soportada');
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            const { latitude, longitude } = pos.coords;
+            socket.emit('send_message', {
+                event_id: eventId,
+                indicativo_id: indicativoId,
+                content: { type: 'location', lat: latitude, lng: longitude }
+            });
+        }, function() {
+            alert('No se pudo obtener la ubicación');
         });
-    }, function() {
-        alert('No se pudo obtener la ubicación');
-    });
+    } else {
+        openLocationModal();
+    }
 });
+// Cambiar el mapa principal a Barcelona
+map.setView([41.3874, 2.1686], 10);
 </script>
 </body>
 </html>
