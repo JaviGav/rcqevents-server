@@ -1,3 +1,10 @@
+import os
+import sys
+
+# Añadir el directorio raíz al PYTHONPATH
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
+
 from app import db
 from app.models.event import Event
 
