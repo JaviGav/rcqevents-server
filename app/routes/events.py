@@ -4,6 +4,7 @@ from app.models.user import User
 from app import db
 from datetime import datetime
 from app.routes.auth import token_required
+from app.models.indicativo import Indicativo
 
 bp = Blueprint('events', __name__, url_prefix='/events')
 
@@ -108,6 +109,53 @@ def delete_event(event_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# --- API de Indicativos ---
+@bp.route('/<int:event_id>/indicativos/api', methods=['GET'])
+def get_indicativos(event_id):
+    indicativos = Indicativo.query.filter_by(event_id=event_id).all()
+    return jsonify({'status': 'success', 'indicativos': [i.to_dict() for i in indicativos]})
+
+@bp.route('/<int:event_id>/indicativos/api', methods=['POST'])
+def create_indicativo(event_id):
+    data = request.get_json()
+    if not data or 'indicativo' not in data:
+        return jsonify({'status': 'error', 'message': 'El campo indicativo es requerido'}), 400
+    indicativo = Indicativo(
+        indicativo=data['indicativo'],
+        nombre=data.get('nombre'),
+        localizacion=data.get('localizacion'),
+        fecha_inicio=datetime.strptime(data['fecha_inicio'], '%Y-%m-%d %H:%M:%S') if data.get('fecha_inicio') else None,
+        fecha_fin=datetime.strptime(data['fecha_fin'], '%Y-%m-%d %H:%M:%S') if data.get('fecha_fin') else None,
+        event_id=event_id
+    )
+    db.session.add(indicativo)
+    db.session.commit()
+    return jsonify({'status': 'success', 'indicativo': indicativo.to_dict()}), 201
+
+@bp.route('/<int:event_id>/indicativos/api/<int:indicativo_id>', methods=['PUT'])
+def update_indicativo(event_id, indicativo_id):
+    indicativo = Indicativo.query.filter_by(id=indicativo_id, event_id=event_id).first_or_404()
+    data = request.get_json()
+    if 'indicativo' in data:
+        indicativo.indicativo = data['indicativo']
+    if 'nombre' in data:
+        indicativo.nombre = data['nombre']
+    if 'localizacion' in data:
+        indicativo.localizacion = data['localizacion']
+    if 'fecha_inicio' in data:
+        indicativo.fecha_inicio = datetime.strptime(data['fecha_inicio'], '%Y-%m-%d %H:%M:%S') if data['fecha_inicio'] else None
+    if 'fecha_fin' in data:
+        indicativo.fecha_fin = datetime.strptime(data['fecha_fin'], '%Y-%m-%d %H:%M:%S') if data['fecha_fin'] else None
+    db.session.commit()
+    return jsonify({'status': 'success', 'indicativo': indicativo.to_dict()})
+
+@bp.route('/<int:event_id>/indicativos/api/<int:indicativo_id>', methods=['DELETE'])
+def delete_indicativo(event_id, indicativo_id):
+    indicativo = Indicativo.query.filter_by(id=indicativo_id, event_id=event_id).first_or_404()
+    db.session.delete(indicativo)
+    db.session.commit()
+    return jsonify({'status': 'success', 'message': 'Indicativo eliminado'})
 
 # Template HTML para la página de administración (parte 1)
 ADMIN_TEMPLATE_PART1 = """
