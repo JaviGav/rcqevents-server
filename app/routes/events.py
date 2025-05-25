@@ -997,12 +997,12 @@ function updateLocationMarkers() {
 function appendMessage(msg) {
     const div = document.createElement('div');
     div.className = 'message' + (msg.content.type === 'location' ? ' location' : '');
-    div.innerHTML = `<div class=\"meta\"><b>${msg.indicativo || ''}</b> <span>${msg.timestamp}</span></div>`;
+    const color = msg.indicativo_color || '#3498db';
+    div.innerHTML = `<div class=\"meta\"><span style=\"display:inline-block;width:13px;height:13px;border-radius:50%;background:${color};border:1.5px solid #ccc;margin-right:5px;vertical-align:middle;\"></span><b>${msg.indicativo || ''}</b> <span>${msg.timestamp}</span></div>`;
     if (msg.content.type === 'text') {
         div.innerHTML += `<div class=\"content\">${msg.content.text}</div>`;
     } else if (msg.content.type === 'location') {
         div.innerHTML += `<div class=\"content\">📍 Ubicación: (${msg.content.lat}, ${msg.content.lng})</div>`;
-        // Guardar última ubicación
         lastLocations[msg.indicativo_id] = {
             ...msg,
             indicativo_color: msg.indicativo_color || msg.color || '#3498db'
