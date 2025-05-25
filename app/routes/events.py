@@ -290,9 +290,9 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
 
     <div id="alertContainer"></div>
 
-    <div id="eventFormContainer" class="form-container">
+    <div id="eventFormContainer" class="form-container" style="display:none;">
         <h2 id="formTitle">Agregar Nuevo Evento</h2>
-        <form id="eventForm" style="display:none;">
+        <form id="eventForm">
             <input type="hidden" id="eventId" value="">
             <div class="form-group">
                 <label for="nombre">Nombre del Evento:</label>
@@ -332,10 +332,13 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
         });
 
         document.getElementById('addEventBtn').addEventListener('click', function() {
-            document.getElementById('eventFormContainer').style.display = 'block';
+            document.getElementById('eventForm').reset();
+            document.getElementById('eventId').value = '';
             document.getElementById('formTitle').textContent = 'Agregar Nuevo Evento';
             document.getElementById('submitBtn').textContent = 'Agregar Evento';
             document.getElementById('cancelBtn').style.display = 'inline-block';
+            document.getElementById('eventFormContainer').style.display = 'block';
+            document.getElementById('eventForm').style.display = 'block';
             editingEventId = null;
         });
 
@@ -432,6 +435,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
             document.getElementById('formTitle').textContent = 'Editar Evento';
             document.getElementById('submitBtn').textContent = 'Actualizar Evento';
             document.getElementById('cancelBtn').style.display = 'inline-block';
+            document.getElementById('eventFormContainer').style.display = 'block';
             document.getElementById('eventForm').style.display = 'block';
         }
 
@@ -489,8 +493,8 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
             document.getElementById('formTitle').textContent = 'Agregar Nuevo Evento';
             document.getElementById('submitBtn').textContent = 'Agregar Evento';
             document.getElementById('cancelBtn').style.display = 'none';
-            document.getElementById('eventForm').style.display = 'none';
             document.getElementById('eventFormContainer').style.display = 'none';
+            document.getElementById('eventForm').style.display = 'none';
         }
 
         function showAlert(message, type) {
