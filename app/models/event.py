@@ -12,6 +12,9 @@ class Event(db.Model):
     # Nueva columna para la clave foránea
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
+    # Relaciones
+    indicativos = db.relationship('Indicativo', backref='evento', lazy=True)
+    
     def to_dict(self):
         madrid_tz = pytz.timezone("Europe/Madrid")
         # Convertimos self.fecha (UTC) a la zona horaria de Madrid
