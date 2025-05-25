@@ -1,11 +1,7 @@
-import os
 from app import create_app
+from app.socket import socketio
 
-app = create_app(os.getenv('FLASK_ENV', 'default'))
+app = create_app()
 
 if __name__ == '__main__':
-    app.run(
-        host=app.config['HOST'],
-        port=app.config['PORT'],
-        debug=app.config['DEBUG']
-    ) 
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True) 
