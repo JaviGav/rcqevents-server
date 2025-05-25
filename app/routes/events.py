@@ -915,6 +915,12 @@ EVENT_CONTROL_TEMPLATE = '''
             <div id="chatHistory"></div>
             <form id="chatForm" style="display:flex; gap:5px;">
                 <input type="text" id="chatInput" placeholder="Escribe un mensaje..." style="flex:1; padding:8px;">
+                <select id="toIndicativoSelect" style="width:140px;">
+                    <option value="">Para: Todos</option>
+                    {% for ind in indicativos %}
+                        <option value="{{ ind.id }}">Para: {{ ind.indicativo }} ({{ ind.nombre or '' }})</option>
+                    {% endfor %}
+                </select>
                 <button type="submit">Enviar</button>
                 <button type="button" id="sendLocationBtn">📍</button>
             </form>
@@ -1012,7 +1018,11 @@ function appendMessage(msg) {
     const div = document.createElement('div');
     div.className = 'message' + (msg.content.type === 'location' ? ' location' : '');
     const color = msg.indicativo_color || '#3498db';
-    div.innerHTML = `<div class=\"meta\"><span style=\"display:inline-block;width:13px;height:13px;border-radius:50%;background:${color};border:1.5px solid #ccc;margin-right:5px;vertical-align:middle;\"></span><b>${msg.indicativo || ''}</b> <span>${msg.timestamp}</span></div>`;
+    let privado = '';
+    if (msg.to_indicativo_id && msg.to_indicativo_id !== '' && msg.to_indicativo_id !== null) {
+        privado = '<span style="color:#e67e22;font-size:12px;margin-left:6px;">(privado)</span>';
+    }
+    div.innerHTML = `<div class=\"meta\"><span style=\"display:inline-block;width:13px;height:13px;border-radius:50%;background:${color};border:1.5px solid #ccc;margin-right:5px;vertical-align:middle;\"></span><b>${msg.indicativo || ''}</b> <span>${msg.timestamp}</span> ${privado}</div>`;
     if (msg.content.type === 'text') {
         div.innerHTML += `<div class=\"content\">${msg.content.text}</div>`;
     } else if (msg.content.type === 'location') {
@@ -1072,10 +1082,12 @@ document.getElementById('chatForm').addEventListener('submit', function(e) {
     e.preventDefault();
     if (!indicativoId) return alert('Selecciona un indicativo');
     const text = document.getElementById('chatInput').value.trim();
+    const toIndicativoId = document.getElementById('toIndicativoSelect').value || null;
     if (!text) return;
     socket.emit('send_message', {
         event_id: eventId,
         indicativo_id: indicativoId,
+        to_indicativo_id: toIndicativoId,
         content: { type: 'text', text }
     });
     document.getElementById('chatInput').value = '';
