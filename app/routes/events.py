@@ -955,6 +955,12 @@ const lastLocations = {}; // indicativo_id -> msg
 const markerRefs = {}; // indicativo_id -> marker
 let selectedMarker = null;
 
+// Mapa principal de localizaciones
+const map = L.map('map').setView([41.3874, 2.1686], 10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
 function updateLocationMarkers() {
     // Limpiar marcadores
     Object.values(markerRefs).forEach(m => map.removeLayer(m));
@@ -1050,7 +1056,7 @@ const searchAddressBtn = document.getElementById('searchAddressBtn');
 const latInput = document.getElementById('latInput');
 const lngInput = document.getElementById('lngInput');
 const sendManualLocationBtn = document.getElementById('sendManualLocationBtn');
-let manualMap, manualMarker;
+let manualMap = null, manualMarker;
 
 function openLocationModal() {
     locationModal.style.display = 'flex';
@@ -1137,8 +1143,6 @@ document.getElementById('sendLocationBtn').addEventListener('click', function() 
         openLocationModal();
     }
 });
-// Cambiar el mapa principal a Barcelona
-map.setView([41.3874, 2.1686], 10);
 </script>
 </body>
 </html>
