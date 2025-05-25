@@ -3,6 +3,7 @@ from app.models.message import Message
 from app.models.event import Event
 from app.models.indicativo import Indicativo
 from datetime import datetime
+from app.extensions import db
 
 socketio = SocketIO()
 
@@ -16,7 +17,6 @@ def handle_disconnect():
 
 @socketio.on('join_event')
 def handle_join_event(data):
-    from app import db
     event_id = data.get('event_id')
     indicativo_id = data.get('indicativo_id')
     
@@ -50,7 +50,6 @@ def handle_join_event(data):
 
 @socketio.on('leave_event')
 def handle_leave_event(data):
-    from app import db
     event_id = data.get('event_id')
     indicativo_id = data.get('indicativo_id')
     
@@ -66,7 +65,6 @@ def handle_leave_event(data):
 
 @socketio.on('send_message')
 def handle_send_message(data):
-    from app import db
     event_id = data.get('event_id')
     indicativo_id = data.get('indicativo_id')
     content = data.get('content')

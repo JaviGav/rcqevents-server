@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, render_template_string
 from app.models.event import Event
 from app.models.user import User
-from app import db
+from app.extensions import db
 from datetime import datetime
 from app.routes.auth import token_required
 from app.models.indicativo import Indicativo
@@ -176,6 +176,12 @@ def delete_indicativo(event_id, indicativo_id):
 def event_detail(event_id):
     event = Event.query.get_or_404(event_id)
     return render_template_string(EVENT_DETAIL_TEMPLATE, event=event)
+
+@bp.route('/<int:event_id>/control')
+def event_control(event_id):
+    event = Event.query.get_or_404(event_id)
+    indicativos = Indicativo.query.filter_by(event_id=event_id).all()
+    return render_template_string(EVENT_CONTROL_TEMPLATE, event=event, indicativos=indicativos)
 
 # Template HTML para la página de administración (parte 1)
 ADMIN_TEMPLATE_PART1 = """
@@ -831,4 +837,163 @@ EVENT_DETAIL_TEMPLATE = """
     </script>
 </body>
 </html>
-""" 
+"""
+
+# Plantilla básica para control de evento (chat + mapa)
+EVENT_CONTROL_TEMPLATE = '''
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Evento - {{ event.nombre }}</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: #2c3e50; color: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .chat-container { display: flex; gap: 20px; }
+        .chat-panel { flex: 2; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .map-panel { flex: 1; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-width: 350px; }
+        #chatHistory { height: 350px; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; padding: 10px; background: #fafafa; }
+        #map { height: 350px; width: 100%; border-radius: 8px; }
+        .message { margin-bottom: 10px; }
+        .message .meta { font-size: 12px; color: #888; }
+        .message .content { font-size: 15px; }
+        .message.location { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 5px 10px; border-radius: 4px; }
+        .indicativo-select { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Control de Evento: {{ event.nombre }}</h1>
+        <a href="/events/" style="color:white;">← Volver a Eventos</a>
+    </div>
+    <div class="chat-container">
+        <div class="chat-panel">
+            <div class="indicativo-select">
+                <label for="indicativoSelect"><b>Selecciona tu indicativo:</b></label>
+                <select id="indicativoSelect">
+                    <option value="">-- Elige un indicativo --</option>
+                    {% for ind in indicativos %}
+                        <option value="{{ ind.id }}">{{ ind.indicativo }} ({{ ind.nombre or '' }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div id="chatHistory"></div>
+            <form id="chatForm" style="display:flex; gap:5px;">
+                <input type="text" id="chatInput" placeholder="Escribe un mensaje..." style="flex:1; padding:8px;">
+                <button type="submit">Enviar</button>
+                <button type="button" id="sendLocationBtn">📍</button>
+            </form>
+        </div>
+        <div class="map-panel">
+            <h3>Localizaciones</h3>
+            <div id="map"></div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+const eventId = {{ event.id }};
+const indicativoKey = `rcq_indicativo_${eventId}`;
+let indicativoId = localStorage.getItem(indicativoKey) || '';
+const indicativoSelect = document.getElementById('indicativoSelect');
+indicativoSelect.value = indicativoId;
+indicativoSelect.addEventListener('change', function() {
+    indicativoId = this.value;
+    if (indicativoId) localStorage.setItem(indicativoKey, indicativoId);
+});
+// Socket.IO
+let socket = null;
+let joined = false;
+const chatHistory = document.getElementById('chatHistory');
+function appendMessage(msg) {
+    const div = document.createElement('div');
+    div.className = 'message' + (msg.content.type === 'location' ? ' location' : '');
+    div.innerHTML = `<div class="meta"><b>${msg.indicativo || ''}</b> <span>${msg.timestamp}</span></div>`;
+    if (msg.content.type === 'text') {
+        div.innerHTML += `<div class="content">${msg.content.text}</div>`;
+    } else if (msg.content.type === 'location') {
+        div.innerHTML += `<div class="content">📍 Ubicación: (${msg.content.lat}, ${msg.content.lng})</div>`;
+    } else {
+        div.innerHTML += `<div class="content">[${msg.content.type}]</div>`;
+    }
+    chatHistory.appendChild(div);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+// Mapa Leaflet
+const map = L.map('map').setView([40.4168, -3.7038], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+const markers = [];
+function addLocationMarker(msg) {
+    if (msg.content.type === 'location') {
+        const marker = L.marker([msg.content.lat, msg.content.lng]).addTo(map);
+        marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
+        markers.push(marker);
+    }
+}
+function clearMarkers() {
+    markers.forEach(m => map.removeLayer(m));
+    markers.length = 0;
+}
+function joinChat() {
+    if (!indicativoId) return;
+    if (socket) socket.disconnect();
+    socket = io();
+    socket.emit('join_event', { event_id: eventId, indicativo_id: indicativoId });
+    joined = true;
+    socket.on('message_history', data => {
+        chatHistory.innerHTML = '';
+        clearMarkers();
+        (data.messages || []).forEach(msg => {
+            appendMessage(msg);
+            addLocationMarker(msg);
+        });
+    });
+    socket.on('new_message', msg => {
+        appendMessage(msg);
+        addLocationMarker(msg);
+    });
+    socket.on('error', err => {
+        alert(err.message);
+    });
+}
+indicativoSelect.addEventListener('change', function() {
+    if (this.value) joinChat();
+});
+if (indicativoId) joinChat();
+document.getElementById('chatForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!indicativoId) return alert('Selecciona un indicativo');
+    const text = document.getElementById('chatInput').value.trim();
+    if (!text) return;
+    socket.emit('send_message', {
+        event_id: eventId,
+        indicativo_id: indicativoId,
+        content: { type: 'text', text }
+    });
+    document.getElementById('chatInput').value = '';
+});
+document.getElementById('sendLocationBtn').addEventListener('click', function() {
+    if (!indicativoId) return alert('Selecciona un indicativo');
+    if (!navigator.geolocation) return alert('Geolocalización no soportada');
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        const { latitude, longitude } = pos.coords;
+        socket.emit('send_message', {
+            event_id: eventId,
+            indicativo_id: indicativoId,
+            content: { type: 'location', lat: latitude, lng: longitude }
+        });
+    }, function() {
+        alert('No se pudo obtener la ubicación');
+    });
+});
+</script>
+</body>
+</html>
+''' 
