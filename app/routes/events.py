@@ -985,6 +985,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 // --- Auto-centro del mapa ---
 let autoCenter = true;
+let isProgrammaticMove = false;
 
 // Botón de auto-centro
 const autoCenterBtn = document.createElement('button');
@@ -1003,12 +1004,12 @@ autoCenterBtn.style.padding = '0';
 autoCenterBtn.style.display = 'flex';
 autoCenterBtn.style.alignItems = 'center';
 autoCenterBtn.style.justifyContent = 'center';
-autoCenterBtn.innerHTML = '<span id="autoCenterIcon">📡</span>';
+autoCenterBtn.innerHTML = '<span id="autoCenterIcon">🎯</span>';
 
 document.querySelector('.map-panel > div').appendChild(autoCenterBtn);
 
 function updateAutoCenterBtn() {
-    autoCenterBtn.style.background = autoCenter ? '#8e44ad' : '#eee';
+    autoCenterBtn.style.background = autoCenter ? '#27ae60' : '#eee';
     autoCenterBtn.style.color = autoCenter ? '#fff' : '#888';
     autoCenterBtn.title = autoCenter ? 'Auto-centro activado' : 'Auto-centro desactivado';
 }
@@ -1018,14 +1019,20 @@ autoCenterBtn.addEventListener('click', function() {
     autoCenter = !autoCenter;
     updateAutoCenterBtn();
     if (autoCenter) {
+        isProgrammaticMove = true;
         updateLocationMarkers(true);
     }
 });
 
-map.on('movestart zoomstart', function() {
-    if (autoCenter) {
+map.on('movestart zoomstart', function(e) {
+    if (autoCenter && !isProgrammaticMove) {
         autoCenter = false;
         updateAutoCenterBtn();
+    }
+});
+map.on('moveend zoomend', function(e) {
+    if (isProgrammaticMove) {
+        isProgrammaticMove = false;
     }
 });
 
@@ -1051,6 +1058,7 @@ function updateLocationMarkers(autoFit = false) {
     });
     // Centrar mapa si se solicita y hay marcadores
     if (autoFit && markerList.length > 0) {
+        isProgrammaticMove = true;
         if (markerList.length === 1) {
             map.setView(markerList[0].getLatLng(), 15);
         } else {
