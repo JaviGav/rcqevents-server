@@ -40,9 +40,13 @@ def handle_join_event(data):
     room = f'event_{event_id}'
     join_room(room)
     join_room(f'indicativo_{indicativo_id}_event_{event_id}')
-    # Enviar historial de mensajes
+    # Enviar historial de mensajes filtrado
     messages = Message.query.filter_by(event_id=event_id).order_by(Message.timestamp.asc()).all()
-    emit('message_history', {'messages': [msg.to_dict() for msg in messages]})
+    filtered_messages = [
+        msg for msg in messages
+        if not msg.to_indicativo_id or str(msg.indicativo_id) == str(indicativo_id) or str(msg.to_indicativo_id) == str(indicativo_id)
+    ]
+    emit('message_history', {'messages': [msg.to_dict() for msg in filtered_messages]})
     # Notificar a otros usuarios
     emit('user_joined', {
         'message': f'Indicativo {indicativo.indicativo} se unió al chat',
