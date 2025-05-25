@@ -1014,15 +1014,26 @@ function updateLocationMarkers(autoFit = false) {
     }
 }
 
+// --- Lista de indicativos para lookup rápido por id ---
+const indicativosList = [
+    {% for ind in indicativos %}
+        {id: '{{ ind.id }}', indicativo: '{{ ind.indicativo }}', nombre: '{{ ind.nombre or '' }}'},
+    {% endfor %}
+];
+
 function appendMessage(msg) {
     const div = document.createElement('div');
     div.className = 'message' + (msg.content.type === 'location' ? ' location' : '');
     const color = msg.indicativo_color || '#3498db';
     let privado = '';
+    let destinatario = 'Todos';
     if (msg.to_indicativo_id && msg.to_indicativo_id !== '' && msg.to_indicativo_id !== null) {
+        // Buscar el nombre del destinatario en la lista de indicativos
+        const dest = indicativosList.find(i => i.id == msg.to_indicativo_id);
+        destinatario = dest ? (dest.indicativo + (dest.nombre ? ' (' + dest.nombre + ')' : '')) : msg.to_indicativo_id;
         privado = '<span style="color:#e67e22;font-size:12px;margin-left:6px;">(privado)</span>';
     }
-    div.innerHTML = `<div class=\"meta\"><span style=\"display:inline-block;width:13px;height:13px;border-radius:50%;background:${color};border:1.5px solid #ccc;margin-right:5px;vertical-align:middle;\"></span><b>${msg.indicativo || ''}</b> <span>${msg.timestamp}</span> ${privado}</div>`;
+    div.innerHTML = `<div class=\"meta\"><span style=\"display:inline-block;width:13px;height:13px;border-radius:50%;background:${color};border:1.5px solid #ccc;margin-right:5px;vertical-align:middle;\"></span><b>${msg.indicativo || ''}</b> → <b>${destinatario}</b> <span>${msg.timestamp}</span> ${privado}</div>`;
     if (msg.content.type === 'text') {
         div.innerHTML += `<div class=\"content\">${msg.content.text}</div>`;
     } else if (msg.content.type === 'location') {
