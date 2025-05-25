@@ -335,6 +335,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
             document.getElementById('eventForm').style.display = 'block';
             document.getElementById('formTitle').textContent = 'Agregar Nuevo Evento';
             document.getElementById('submitBtn').textContent = 'Agregar Evento';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
             editingEventId = null;
         });
 
@@ -610,6 +611,7 @@ EVENT_DETAIL_TEMPLATE = """
             document.getElementById('indicativoForm').style.display = 'block';
             document.getElementById('formTitle').textContent = 'Agregar Nuevo Indicativo';
             document.getElementById('submitBtn').textContent = 'Agregar Indicativo';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
             editingIndicativoId = null;
         });
         document.getElementById('indicativoForm').addEventListener('submit', function(e) {
