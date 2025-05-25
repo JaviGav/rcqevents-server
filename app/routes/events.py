@@ -762,7 +762,7 @@ EVENT_DETAIL_TEMPLATE = """
                     <td>${indicativo.fecha_fin || ''}</td>
                     <td><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${indicativo.color || '#3498db'};border:1px solid #ccc;"></span></td>
                     <td>
-                        <button class='edit' onclick="editIndicativo(${indicativo.id}, '${indicativo.indicativo || ''}', '${indicativo.nombre || ''}', '${indicativo.localizacion || ''}', '${indicativo.fecha_inicio || ''}', '${indicativo.fecha_fin || ''}')">Editar</button>
+                        <button class='edit' onclick="editIndicativo(${indicativo.id}, '${indicativo.indicativo || ''}', '${indicativo.nombre || ''}', '${indicativo.localizacion || ''}', '${indicativo.fecha_inicio || ''}', '${indicativo.fecha_fin || ''}', '${indicativo.color || ''}')">Editar</button>
                         <button class='delete' onclick='deleteIndicativo(${indicativo.id})'>Eliminar</button>
                     </td>
                 `;
@@ -789,7 +789,7 @@ EVENT_DETAIL_TEMPLATE = """
                 showAlert('Error de conexión: ' + error.message, 'error');
             });
         }
-        function editIndicativo(id, indicativo, nombre, localizacion, fecha_inicio, fecha_fin) {
+        function editIndicativo(id, indicativo, nombre, localizacion, fecha_inicio, fecha_fin, color) {
             editingIndicativoId = id;
             document.getElementById('indicativoId').value = id;
             document.getElementById('indicativo').value = indicativo;
@@ -802,7 +802,7 @@ EVENT_DETAIL_TEMPLATE = """
             document.getElementById('cancelBtn').style.display = 'inline-block';
             document.getElementById('indicativoFormContainer').style.display = 'block';
             document.getElementById('indicativoForm').style.display = 'block';
-            if (indicativo.color) document.getElementById('color').value = indicativo.color;
+            document.getElementById('color').value = color || '#3498db';
         }
         function updateIndicativo(id, data) {
             fetch(`/events/{{ event.id }}/indicativos/api/${id}`, {
