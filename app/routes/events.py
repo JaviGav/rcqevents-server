@@ -290,7 +290,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
 
     <div id="alertContainer"></div>
 
-    <div class="form-container">
+    <div id="eventFormContainer" class="form-container">
         <h2 id="formTitle">Agregar Nuevo Evento</h2>
         <form id="eventForm" style="display:none;">
             <input type="hidden" id="eventId" value="">
@@ -332,7 +332,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
         });
 
         document.getElementById('addEventBtn').addEventListener('click', function() {
-            document.getElementById('eventForm').style.display = 'block';
+            document.getElementById('eventFormContainer').style.display = 'block';
             document.getElementById('formTitle').textContent = 'Agregar Nuevo Evento';
             document.getElementById('submitBtn').textContent = 'Agregar Evento';
             document.getElementById('cancelBtn').style.display = 'inline-block';
@@ -490,6 +490,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
             document.getElementById('submitBtn').textContent = 'Agregar Evento';
             document.getElementById('cancelBtn').style.display = 'none';
             document.getElementById('eventForm').style.display = 'none';
+            document.getElementById('eventFormContainer').style.display = 'none';
         }
 
         function showAlert(message, type) {
@@ -555,7 +556,7 @@ EVENT_DETAIL_TEMPLATE = """
         <a href='/events/' style='color:white;'>← Volver a Eventos</a>
     </div>
     <div id='alertContainer'></div>
-    <div class='form-container'>
+    <div id="indicativoFormContainer" class="form-container">
         <h2 id='formTitle'>Agregar Indicativo</h2>
         <form id="indicativoForm" style="display:none;">
             <input type='hidden' id='indicativoId' value=''>
@@ -608,7 +609,7 @@ EVENT_DETAIL_TEMPLATE = """
             loadIndicativos();
         });
         document.getElementById('addIndicativoBtn').addEventListener('click', function() {
-            document.getElementById('indicativoForm').style.display = 'block';
+            document.getElementById('indicativoFormContainer').style.display = 'block';
             document.getElementById('formTitle').textContent = 'Agregar Nuevo Indicativo';
             document.getElementById('submitBtn').textContent = 'Agregar Indicativo';
             document.getElementById('cancelBtn').style.display = 'inline-block';
@@ -751,6 +752,7 @@ EVENT_DETAIL_TEMPLATE = """
             document.getElementById('submitBtn').textContent = 'Agregar Indicativo';
             document.getElementById('cancelBtn').style.display = 'none';
             document.getElementById('indicativoForm').style.display = 'none';
+            document.getElementById('indicativoFormContainer').style.display = 'none';
         }
         function showAlert(message, type) {
             const alertContainer = document.getElementById('alertContainer');
