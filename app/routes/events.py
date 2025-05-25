@@ -1003,21 +1003,6 @@ function appendMessage(msg) {
     updateLocationMarkers();
 }
 
-// En historial, reconstruir lastLocations y marcadores
-socket.on('message_history', data => {
-    chatHistory.innerHTML = '';
-    Object.keys(lastLocations).forEach(k => delete lastLocations[k]);
-    Object.keys(markerRefs).forEach(k => { map.removeLayer(markerRefs[k]); delete markerRefs[k]; });
-    (data.messages || []).forEach(msg => {
-        appendMessage(msg);
-    });
-    updateLocationMarkers();
-});
-socket.on('new_message', msg => {
-    appendMessage(msg);
-    // updateLocationMarkers() ya se llama en appendMessage
-});
-
 function joinChat() {
     if (!indicativoId) return;
     if (socket) socket.disconnect();
@@ -1026,11 +1011,16 @@ function joinChat() {
     joined = true;
     socket.on('message_history', data => {
         chatHistory.innerHTML = '';
+        Object.keys(lastLocations).forEach(k => delete lastLocations[k]);
+        Object.keys(markerRefs).forEach(k => { map.removeLayer(markerRefs[k]); delete markerRefs[k]; });
+        (data.messages || []).forEach(msg => {
+            appendMessage(msg);
+        });
         updateLocationMarkers();
     });
     socket.on('new_message', msg => {
         appendMessage(msg);
-        addLocationModal.style.display = 'none';
+        locationModal.style.display = 'none';
     });
     socket.on('error', err => {
         alert(err.message);
