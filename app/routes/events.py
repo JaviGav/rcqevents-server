@@ -1133,6 +1133,7 @@ function joinChat() {
             appendMessage(msg);
         });
         chatHistory.scrollTop = chatHistory.scrollHeight;
+        isProgrammaticMove = true;
         updateLocationMarkers(true);
     });
     socket.on('new_message', msg => {
