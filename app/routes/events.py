@@ -983,6 +983,52 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
+// --- Auto-centro del mapa ---
+let autoCenter = true;
+
+// Botón de auto-centro
+const autoCenterBtn = document.createElement('button');
+autoCenterBtn.id = 'autoCenterBtn';
+autoCenterBtn.title = 'Activar/desactivar auto-centro';
+autoCenterBtn.className = 'leaflet-control leaflet-bar';
+autoCenterBtn.style.position = 'absolute';
+autoCenterBtn.style.top = '54px';
+autoCenterBtn.style.right = '10px';
+autoCenterBtn.style.zIndex = 1001;
+autoCenterBtn.style.width = '34px';
+autoCenterBtn.style.height = '34px';
+autoCenterBtn.style.lineHeight = '32px';
+autoCenterBtn.style.fontSize = '20px';
+autoCenterBtn.style.padding = '0';
+autoCenterBtn.style.display = 'flex';
+autoCenterBtn.style.alignItems = 'center';
+autoCenterBtn.style.justifyContent = 'center';
+autoCenterBtn.innerHTML = '<span id="autoCenterIcon">📡</span>';
+
+document.querySelector('.map-panel > div').appendChild(autoCenterBtn);
+
+function updateAutoCenterBtn() {
+    autoCenterBtn.style.background = autoCenter ? '#8e44ad' : '#eee';
+    autoCenterBtn.style.color = autoCenter ? '#fff' : '#888';
+    autoCenterBtn.title = autoCenter ? 'Auto-centro activado' : 'Auto-centro desactivado';
+}
+updateAutoCenterBtn();
+
+autoCenterBtn.addEventListener('click', function() {
+    autoCenter = !autoCenter;
+    updateAutoCenterBtn();
+    if (autoCenter) {
+        updateLocationMarkers(true);
+    }
+});
+
+map.on('movestart zoomstart', function() {
+    if (autoCenter) {
+        autoCenter = false;
+        updateAutoCenterBtn();
+    }
+});
+
 function updateLocationMarkers(autoFit = false) {
     // Limpiar marcadores
     Object.values(markerRefs).forEach(m => map.removeLayer(m));
@@ -1059,7 +1105,7 @@ function appendMessage(msg) {
     chatHistory.appendChild(div);
     chatHistory.scrollTop = chatHistory.scrollHeight;
     if (msg.content.type === 'location') {
-        updateLocationMarkers(true);
+        updateLocationMarkers(autoCenter);
     } else {
         updateLocationMarkers(false);
     }
