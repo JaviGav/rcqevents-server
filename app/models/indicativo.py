@@ -10,6 +10,7 @@ class Indicativo(db.Model):
     fecha_inicio = db.Column(db.DateTime, nullable=True)
     fecha_fin = db.Column(db.DateTime, nullable=True)
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
+    color = db.Column(db.String(7), nullable=True)  # Hex color, ej: #ff0000
 
     def to_dict(self):
         return {
@@ -19,5 +20,6 @@ class Indicativo(db.Model):
             'localizacion': self.localizacion,
             'fecha_inicio': self.fecha_inicio.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_inicio else None,
             'fecha_fin': self.fecha_fin.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_fin else None,
-            'event_id': self.event_id
+            'event_id': self.event_id,
+            'color': self.color
         } 

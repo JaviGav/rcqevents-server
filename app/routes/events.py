@@ -162,6 +162,8 @@ def update_indicativo(event_id, indicativo_id):
         indicativo.fecha_inicio = datetime.strptime(data['fecha_inicio'], '%Y-%m-%d %H:%M:%S') if data['fecha_inicio'] else None
     if 'fecha_fin' in data:
         indicativo.fecha_fin = datetime.strptime(data['fecha_fin'], '%Y-%m-%d %H:%M:%S') if data['fecha_fin'] else None
+    if 'color' in data:
+        indicativo.color = data['color']
     db.session.commit()
     return jsonify({'status': 'success', 'indicativo': indicativo.to_dict()})
 
@@ -667,6 +669,10 @@ EVENT_DETAIL_TEMPLATE = """
                 <label for='fecha_fin'>Fecha Fin:</label>
                 <input type='datetime-local' id='fecha_fin' name='fecha_fin'>
             </div>
+            <div class='form-group'>
+                <label for='color'>Color del marcador:</label>
+                <input type='color' id='color' name='color'>
+            </div>
             <button type='submit' id='submitBtn'>Actualizar Indicativo</button>
             <button type='button' id='cancelBtn' onclick='cancelEdit()'>Cancelar</button>
         </form>
@@ -683,6 +689,7 @@ EVENT_DETAIL_TEMPLATE = """
                     <th>Localización</th>
                     <th>Fecha Inicio</th>
                     <th>Fecha Fin</th>
+                    <th>Color</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -712,12 +719,14 @@ EVENT_DETAIL_TEMPLATE = """
             const localizacion = document.getElementById('localizacion').value;
             const fecha_inicio = document.getElementById('fecha_inicio').value;
             const fecha_fin = document.getElementById('fecha_fin').value;
+            const color = document.getElementById('color').value;
             const data = {
                 indicativo,
                 nombre,
                 localizacion,
                 fecha_inicio: fecha_inicio ? fecha_inicio.replace('T', ' ') + ':00' : null,
-                fecha_fin: fecha_fin ? fecha_fin.replace('T', ' ') + ':00' : null
+                fecha_fin: fecha_fin ? fecha_fin.replace('T', ' ') + ':00' : null,
+                color: color || null
             };
             if (editingIndicativoId) {
                 updateIndicativo(editingIndicativoId, data);
@@ -751,6 +760,7 @@ EVENT_DETAIL_TEMPLATE = """
                     <td>${indicativo.localizacion || ''}</td>
                     <td>${indicativo.fecha_inicio || ''}</td>
                     <td>${indicativo.fecha_fin || ''}</td>
+                    <td><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${indicativo.color || '#3498db'};border:1px solid #ccc;"></span></td>
                     <td>
                         <button class='edit' onclick="editIndicativo(${indicativo.id}, '${indicativo.indicativo || ''}', '${indicativo.nombre || ''}', '${indicativo.localizacion || ''}', '${indicativo.fecha_inicio || ''}', '${indicativo.fecha_fin || ''}')">Editar</button>
                         <button class='delete' onclick='deleteIndicativo(${indicativo.id})'>Eliminar</button>
@@ -792,6 +802,7 @@ EVENT_DETAIL_TEMPLATE = """
             document.getElementById('cancelBtn').style.display = 'inline-block';
             document.getElementById('indicativoFormContainer').style.display = 'block';
             document.getElementById('indicativoForm').style.display = 'block';
+            if (indicativo.color) document.getElementById('color').value = indicativo.color;
         }
         function updateIndicativo(id, data) {
             fetch(`/events/{{ event.id }}/indicativos/api/${id}`, {
@@ -968,16 +979,13 @@ function updateLocationMarkers() {
     // Añadir solo la última ubicación de cada indicativo
     Object.values(lastLocations).forEach(msg => {
         if (msg.content.type === 'location') {
+            // Color del indicativo
+            const color = msg.indicativo_color || '#3498db';
             const isOwn = (msg.indicativo_id == indicativoId);
             const marker = L.marker([msg.content.lat, msg.content.lng], {
-                icon: isOwn ? L.icon({
-                    iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-violet.png',
-                    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-                    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-                }) : L.icon({
-                    iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-blue.png',
-                    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-                    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style="background:${color};width:18px;height:18px;border-radius:50%;border:2px solid #fff;"></div>`
                 })
             }).addTo(map);
             marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
@@ -995,7 +1003,10 @@ function appendMessage(msg) {
     } else if (msg.content.type === 'location') {
         div.innerHTML += `<div class=\"content\">📍 Ubicación: (${msg.content.lat}, ${msg.content.lng})</div>`;
         // Guardar última ubicación
-        lastLocations[msg.indicativo_id] = msg;
+        lastLocations[msg.indicativo_id] = {
+            ...msg,
+            indicativo_color: msg.indicativo_color || msg.color || '#3498db'
+        };
         div.style.cursor = 'pointer';
         div.addEventListener('click', function() {
             const marker = markerRefs[msg.indicativo_id];
