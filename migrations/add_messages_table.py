@@ -16,10 +16,11 @@ def upgrade():
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_id INTEGER NOT NULL,
-                sender VARCHAR(100) NOT NULL,
+                indicativo_id INTEGER NOT NULL,
                 content TEXT NOT NULL,
                 timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (event_id) REFERENCES events (id)
+                FOREIGN KEY (event_id) REFERENCES events (id),
+                FOREIGN KEY (indicativo_id) REFERENCES indicativos (id)
             )
         '''))
         db.session.commit()
