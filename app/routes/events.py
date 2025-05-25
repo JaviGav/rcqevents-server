@@ -425,14 +425,13 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
             editingEventId = id;
             document.getElementById('eventId').value = id;
             document.getElementById('nombre').value = nombre;
-            // fecha viene como "YYYY-MM-DD HH:MM:SS"
-            // Convertimos a "YYYY-MM-DDTHH:MM" para el input
             const [datePart, timePart] = fecha.split(' ');
             const fechaInput = datePart + 'T' + timePart.slice(0,5);
             document.getElementById('fecha').value = fechaInput;
             document.getElementById('formTitle').textContent = 'Editar Evento';
             document.getElementById('submitBtn').textContent = 'Actualizar Evento';
             document.getElementById('cancelBtn').style.display = 'inline-block';
+            document.getElementById('eventForm').style.display = 'block';
         }
 
         function updateEvent(id, eventData) {
@@ -489,6 +488,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
             document.getElementById('formTitle').textContent = 'Agregar Nuevo Evento';
             document.getElementById('submitBtn').textContent = 'Agregar Evento';
             document.getElementById('cancelBtn').style.display = 'none';
+            document.getElementById('eventForm').style.display = 'none';
         }
 
         function showAlert(message, type) {
@@ -697,6 +697,7 @@ EVENT_DETAIL_TEMPLATE = """
             document.getElementById('formTitle').textContent = 'Editar Indicativo';
             document.getElementById('submitBtn').textContent = 'Actualizar Indicativo';
             document.getElementById('cancelBtn').style.display = 'inline-block';
+            document.getElementById('indicativoForm').style.display = 'block';
         }
         function updateIndicativo(id, data) {
             fetch(`/events/{{ event.id }}/indicativos/api/${id}`, {
@@ -747,6 +748,7 @@ EVENT_DETAIL_TEMPLATE = """
             document.getElementById('formTitle').textContent = 'Agregar Nuevo Indicativo';
             document.getElementById('submitBtn').textContent = 'Agregar Indicativo';
             document.getElementById('cancelBtn').style.display = 'none';
+            document.getElementById('indicativoForm').style.display = 'none';
         }
         function showAlert(message, type) {
             const alertContainer = document.getElementById('alertContainer');
