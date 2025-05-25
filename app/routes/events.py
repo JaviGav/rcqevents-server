@@ -9,7 +9,7 @@ from app.models.indicativo import Indicativo
 bp = Blueprint('events', __name__, url_prefix='/events')
 
 # Página web de administración
-@bp.route('/admin')
+@bp.route('/')
 def admin_page():
     return render_template_string(ADMIN_TEMPLATE)
 
@@ -375,6 +375,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
                     <td>${event.nombre}</td>
                     <td>${new Date(event.fecha).toLocaleString('es-ES')}</td>
                     <td>
+                        <a href="/events/${event.id}" class="manage">Gestionar</a>
                         <button class="edit" onclick="editEvent(${event.id}, '${event.nombre}', '${event.fecha}')">Editar</button>
                         <button class="delete" onclick="deleteEvent(${event.id})">Eliminar</button>
                     </td>
