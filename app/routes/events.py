@@ -292,7 +292,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
 
     <div class="form-container">
         <h2 id="formTitle">Agregar Nuevo Evento</h2>
-        <form id="eventForm">
+        <form id="eventForm" style="display:none;">
             <input type="hidden" id="eventId" value="">
             <div class="form-group">
                 <label for="nombre">Nombre del Evento:</label>
@@ -556,7 +556,7 @@ EVENT_DETAIL_TEMPLATE = """
     <div id='alertContainer'></div>
     <div class='form-container'>
         <h2 id='formTitle'>Agregar Indicativo</h2>
-        <form id='indicativoForm'>
+        <form id="indicativoForm" style="display:none;">
             <input type='hidden' id='indicativoId' value=''>
             <div class='form-group'>
                 <label for='indicativo'>Indicativo:</label>
