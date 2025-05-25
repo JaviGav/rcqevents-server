@@ -105,13 +105,13 @@ def handle_send_message(data):
     message = Message(
         event_id=event_id,
         indicativo_id=indicativo_id,
+        to_indicativo_id=to_indicativo_id,
         content=content
     )
     db.session.add(message)
     db.session.commit()
     # Preparar el mensaje para emitir
     msg_dict = message.to_dict()
-    msg_dict['to_indicativo_id'] = to_indicativo_id
     # Emitir el mensaje
     if to_indicativo_id:
         # Mensaje privado: solo al emisor y destinatario

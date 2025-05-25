@@ -27,18 +27,21 @@ class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
     indicativo_id = db.Column(db.Integer, db.ForeignKey('indicativos.id'), nullable=False)
+    to_indicativo_id = db.Column(db.Integer, db.ForeignKey('indicativos.id'), nullable=True)
     content = db.Column(JSONEncodedDict, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
     # Relaciones
     event = db.relationship('Event', backref=db.backref('messages', lazy=True))
-    indicativo = db.relationship('Indicativo', backref=db.backref('messages', lazy=True))
+    indicativo = db.relationship('Indicativo', backref=db.backref('messages', lazy=True), foreign_keys=[indicativo_id])
+    to_indicativo = db.relationship('Indicativo', backref=db.backref('received_messages', lazy=True), foreign_keys=[to_indicativo_id])
     
     def to_dict(self):
         return {
             'id': self.id,
             'event_id': self.event_id,
             'indicativo_id': self.indicativo_id,
+            'to_indicativo_id': self.to_indicativo_id,
             'indicativo': self.indicativo.indicativo if self.indicativo else None,
             'nombre': self.indicativo.nombre if self.indicativo else None,
             'indicativo_color': self.indicativo.color if self.indicativo and self.indicativo.color else None,
