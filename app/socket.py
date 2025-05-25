@@ -1,5 +1,4 @@
 from flask_socketio import SocketIO, emit, join_room, leave_room
-from app import db
 from app.models.message import Message
 from app.models.event import Event
 from app.models.indicativo import Indicativo
@@ -17,14 +16,13 @@ def handle_disconnect():
 
 @socketio.on('join_event')
 def handle_join_event(data):
-    """Unirse a la sala de chat de un evento específico"""
+    from app import db
     event_id = data.get('event_id')
     indicativo_id = data.get('indicativo_id')
     
     if not event_id or not indicativo_id:
         emit('error', {'message': 'Se requiere event_id e indicativo_id'})
         return
-    
     # Verificar que el evento existe y está activo
     event = Event.query.get(event_id)
     if not event:
@@ -33,21 +31,17 @@ def handle_join_event(data):
     if not event.activo:
         emit('error', {'message': 'El evento está inactivo'})
         return
-    
     # Verificar que el indicativo existe y pertenece al evento
     indicativo = Indicativo.query.filter_by(id=indicativo_id, event_id=event_id).first()
     if not indicativo:
         emit('error', {'message': 'Indicativo no encontrado o no pertenece al evento'})
         return
-    
     # Unirse a la sala del evento
     room = f'event_{event_id}'
     join_room(room)
-    
     # Enviar historial de mensajes
     messages = Message.query.filter_by(event_id=event_id).order_by(Message.timestamp.asc()).all()
     emit('message_history', {'messages': [msg.to_dict() for msg in messages]})
-    
     # Notificar a otros usuarios
     emit('user_joined', {
         'message': f'Indicativo {indicativo.indicativo} se unió al chat',
@@ -56,7 +50,7 @@ def handle_join_event(data):
 
 @socketio.on('leave_event')
 def handle_leave_event(data):
-    """Salir de la sala de chat de un evento"""
+    from app import db
     event_id = data.get('event_id')
     indicativo_id = data.get('indicativo_id')
     
@@ -72,7 +66,7 @@ def handle_leave_event(data):
 
 @socketio.on('send_message')
 def handle_send_message(data):
-    """Enviar un mensaje a la sala de chat de un evento"""
+    from app import db
     event_id = data.get('event_id')
     indicativo_id = data.get('indicativo_id')
     content = data.get('content')
@@ -80,7 +74,13 @@ def handle_send_message(data):
     if not all([event_id, indicativo_id, content]):
         emit('error', {'message': 'Faltan campos requeridos'})
         return
-    
+    # Validar que content sea un JSON y contenga 'type'
+    if not isinstance(content, dict):
+        emit('error', {'message': 'El campo content debe ser un JSON'})
+        return
+    if 'type' not in content:
+        emit('error', {'message': 'El campo content debe contener la clave "type"'})
+        return
     # Verificar que el evento existe y está activo
     event = Event.query.get(event_id)
     if not event:
@@ -89,13 +89,11 @@ def handle_send_message(data):
     if not event.activo:
         emit('error', {'message': 'El evento está inactivo'})
         return
-    
     # Verificar que el indicativo existe y pertenece al evento
     indicativo = Indicativo.query.filter_by(id=indicativo_id, event_id=event_id).first()
     if not indicativo:
         emit('error', {'message': 'Indicativo no encontrado o no pertenece al evento'})
         return
-    
     # Crear y guardar el mensaje
     message = Message(
         event_id=event_id,
@@ -104,7 +102,6 @@ def handle_send_message(data):
     )
     db.session.add(message)
     db.session.commit()
-    
     # Enviar el mensaje a todos en la sala
     room = f'event_{event_id}'
     emit('new_message', message.to_dict(), room=room) 
