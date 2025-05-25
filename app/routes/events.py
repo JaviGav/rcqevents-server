@@ -436,6 +436,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
                         </span>
                     </td>
                     <td>
+                        <a class="manage" href="/events/${event.id}/control" style="margin-right:5px;">Control</a>
                         <button class="manage" onclick="window.location='/events/${event.id}'">Gestionar</button>
                         <button class="edit" onclick="editEvent(${event.id}, '${event.nombre}', '${event.fecha}')">Editar</button>
                         <button class="delete" onclick="deleteEvent(${event.id})">Eliminar</button>
