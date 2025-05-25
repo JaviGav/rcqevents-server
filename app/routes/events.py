@@ -1171,6 +1171,7 @@ const latInput = document.getElementById('latInput');
 const lngInput = document.getElementById('lngInput');
 const sendManualLocationBtn = document.getElementById('sendManualLocationBtn');
 let manualMap = null, manualMarker;
+let manualMapMarkers = {}; // Para los marcadores de otros indicativos en el modal
 
 function openLocationModal() {
     locationModal.style.display = 'flex';
@@ -1186,10 +1187,28 @@ function openLocationModal() {
     } else {
         manualMap.setView([41.3874, 2.1686], 13);
     }
+    // Limpiar marcador manual
     if (manualMarker) manualMap.removeLayer(manualMarker);
     latInput.value = '';
     lngInput.value = '';
     addressInput.value = '';
+    // Limpiar marcadores de otros indicativos
+    Object.values(manualMapMarkers).forEach(m => manualMap.removeLayer(m));
+    manualMapMarkers = {};
+    // Añadir marcadores de las últimas ubicaciones de cada indicativo
+    Object.values(lastLocations).forEach(msg => {
+        if (msg.content.type === 'location') {
+            const color = msg.indicativo_color || '#3498db';
+            const marker = L.marker([msg.content.lat, msg.content.lng], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style=\"background:${color};width:18px;height:18px;border-radius:50%;border:2px solid #fff;\"></div>`
+                })
+            }).addTo(manualMap);
+            marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
+            manualMapMarkers[msg.indicativo_id] = marker;
+        }
+    });
 }
 function closeLocationModalFn() {
     locationModal.style.display = 'none';
