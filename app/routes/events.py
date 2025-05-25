@@ -238,6 +238,12 @@ ADMIN_TEMPLATE_PART1 = """
         button.edit:hover {
             background-color: #e67e22;
         }
+        button.manage {
+            background-color: #27ae60;
+        }
+        button.manage:hover {
+            background-color: #219150;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -375,7 +381,7 @@ ADMIN_TEMPLATE = ADMIN_TEMPLATE_PART1 + """
                     <td>${event.nombre}</td>
                     <td>${new Date(event.fecha).toLocaleString('es-ES')}</td>
                     <td>
-                        <a href="/events/${event.id}" class="manage">Gestionar</a>
+                        <button class="manage" onclick="window.location='/events/${event.id}'">Gestionar</button>
                         <button class="edit" onclick="editEvent(${event.id}, '${event.nombre}', '${event.fecha}')">Editar</button>
                         <button class="delete" onclick="deleteEvent(${event.id})">Eliminar</button>
                     </td>
@@ -515,6 +521,12 @@ EVENT_DETAIL_TEMPLATE = """
         button.delete:hover { background-color: #c0392b; }
         button.edit { background-color: #f39c12; }
         button.edit:hover { background-color: #e67e22; }
+        button.manage {
+            background-color: #27ae60;
+        }
+        button.manage:hover {
+            background-color: #219150;
+        }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f9fa; font-weight: bold; }
