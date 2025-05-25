@@ -921,7 +921,10 @@ EVENT_CONTROL_TEMPLATE = '''
         </div>
         <div class="map-panel">
             <h3>Localizaciones</h3>
-            <div id="map"></div>
+            <div style="position:relative;">
+                <button id="fitMarkersBtn" title="Centrar mapa" style="position:absolute;top:10px;right:10px;z-index:1001;background:#8e44ad;color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:20px;box-shadow:0 2px 6px rgba(0,0,0,0.15);cursor:pointer;">🧭</button>
+                <div id="map"></div>
+            </div>
         </div>
     </div>
     <!-- Modal de ubicación manual -->
@@ -1162,6 +1165,16 @@ document.getElementById('sendLocationBtn').addEventListener('click', function() 
         });
     } else {
         openLocationModal();
+    }
+});
+document.getElementById('fitMarkersBtn').addEventListener('click', function() {
+    const markerList = Object.values(markerRefs);
+    if (markerList.length === 0) return;
+    if (markerList.length === 1) {
+        map.setView(markerList[0].getLatLng(), 15);
+    } else {
+        const group = L.featureGroup(markerList);
+        map.fitBounds(group.getBounds().pad(0.2));
     }
 });
 </script>
