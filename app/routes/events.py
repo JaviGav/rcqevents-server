@@ -185,8 +185,9 @@ def event_detail(event_id):
 @bp.route('/<int:event_id>/control')
 def event_control(event_id):
     event = Event.query.get_or_404(event_id)
-    indicativos = Indicativo.query.filter_by(event_id=event_id).all()
-    return render_template('event_control.html', event=event, indicativos=indicativos)
+    indicativos_obj = Indicativo.query.filter_by(event_id=event_id).all()
+    indicativos_list_of_dicts = [ind.to_dict() for ind in indicativos_obj]
+    return render_template('event_control.html', event=event, indicativos=indicativos_list_of_dicts)
 
 @bp.route('/<int:event_id>/callsigns')
 def event_callsigns(event_id):

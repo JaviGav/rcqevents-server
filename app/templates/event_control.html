@@ -307,7 +307,7 @@ function updateLocationMarkers(autoFit = false) {
 }
 
 // --- Lista de indicativos para lookup rápido por id ---
-const indicativosList = {{ indicativos | map(attribute='to_dict') | list | tojson }};
+const indicativosList = {{ indicativos | tojson }};
 
 function appendMessage(msg) {
     const div = document.createElement('div');
