@@ -51,7 +51,355 @@
             <p>ID: {{ event.id }} | Fecha: {{ event.fecha }}</p>
             <a href="/events/{{ event.id }}" style="color: white;">← Volver a Detalles</a>
         </div>
-        <!-- ... resto del HTML y JS igual que en EVENT_CONTROL_TEMPLATE ... -->
+        <div class="chat-container">
+            <div class="chat-panel">
+                <h2>Incidentes</h2>
+                <div class="incident-form">
+                    <form id="incidentForm">
+                        <div class="form-group">
+                            <label for="indicativo">Indicativo:</label>
+                            <select id="indicativo" name="indicativo" required>
+                                <option value="">Seleccionar indicativo...</option>
+                                {% for indicativo in indicativos %}
+                                <option value="{{ indicativo.indicativo }}" data-id="{{ indicativo.id }}">{{ indicativo.indicativo }} - {{ indicativo.nombre or '' }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tipo">Tipo de Incidente:</label>
+                            <select id="tipo" name="tipo" required>
+                                <option value="">Seleccionar tipo...</option>
+                                <option value="medical">Médico</option>
+                                <option value="security">Seguridad</option>
+                                <option value="logistics">Logística</option>
+                                <option value="other">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="descripcion">Descripción:</label>
+                            <textarea id="descripcion" name="descripcion" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="dorsal">Dorsal (opcional):</label>
+                            <input type="text" id="dorsal" name="dorsal">
+                        </div>
+                        <div class="form-group">
+                            <label for="patologia">Patología (opcional):</label>
+                            <input type="text" id="patologia" name="patologia">
+                        </div>
+                        <button type="submit">Crear Incidente</button>
+                    </form>
+                </div>
+                <div id="incidentList" class="incident-list">
+                    <!-- Los incidentes se cargarán aquí dinámicamente -->
+                </div>
+            </div>
+            <div class="map-panel">
+                <h2>Mapa</h2>
+                <div id="map"></div>
+                <div id="chatHistory"></div>
+                <form id="chatForm" style="margin-top: 10px;">
+                    <div class="form-group">
+                        <input type="text" id="messageInput" placeholder="Escribe un mensaje..." required>
+                        <button type="submit">Enviar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        let map;
+        let markers = {};
+        let incidents = [];
+        let socket;
+        let currentIndicativoId = null;
+        const eventId = {{ event.id }};
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar mapa
+            map = L.map('map').setView([40.4168, -3.7038], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Inicializar Socket.IO
+            socket = io();
+
+            // Manejar conexión
+            socket.on('connect', () => {
+                console.log('Conectado al servidor');
+                // Seleccionar indicativo al cargar
+                const indicativoSelect = document.getElementById('indicativo');
+                if (indicativoSelect.value) {
+                    joinEvent(indicativoSelect.value);
+                }
+            });
+
+            // Manejar eventos del chat
+            socket.on('message_history', (data) => {
+                displayMessages(data.messages);
+            });
+
+            socket.on('new_message', (message) => {
+                appendMessage(message);
+            });
+
+            socket.on('user_joined', (data) => {
+                appendSystemMessage(data.message);
+            });
+
+            socket.on('user_left', (data) => {
+                appendSystemMessage(data.message);
+            });
+
+            socket.on('error', (data) => {
+                console.error('Error:', data.message);
+                appendSystemMessage('Error: ' + data.message);
+            });
+
+            // Manejar cambio de indicativo
+            document.getElementById('indicativo').addEventListener('change', function(e) {
+                if (currentIndicativoId) {
+                    socket.emit('leave_event', {
+                        event_id: eventId,
+                        indicativo_id: currentIndicativoId
+                    });
+                }
+                if (e.target.value) {
+                    joinEvent(e.target.value);
+                }
+            });
+
+            // Cargar incidentes
+            loadIncidents();
+
+            // Manejar envío de formulario
+            document.getElementById('incidentForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                createIncident();
+            });
+
+            // Manejar envío de mensajes
+            document.getElementById('chatForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const input = document.getElementById('messageInput');
+                const message = input.value.trim();
+                if (!message || !currentIndicativoId) return;
+
+                socket.emit('send_message', {
+                    event_id: eventId,
+                    indicativo_id: currentIndicativoId,
+                    content: {
+                        type: 'text',
+                        text: message
+                    }
+                });
+
+                input.value = '';
+            });
+        });
+
+        function joinEvent(indicativo) {
+            // Buscar el ID del indicativo seleccionado
+            const indicativoOption = Array.from(document.getElementById('indicativo').options)
+                .find(opt => opt.value === indicativo);
+            if (!indicativoOption) return;
+
+            const indicativoId = indicativoOption.dataset.id;
+            if (!indicativoId) return;
+
+            currentIndicativoId = indicativoId;
+            socket.emit('join_event', {
+                event_id: eventId,
+                indicativo_id: indicativoId
+            });
+        }
+
+        function displayMessages(messages) {
+            const chatHistory = document.getElementById('chatHistory');
+            chatHistory.innerHTML = '';
+            messages.forEach(message => appendMessage(message));
+        }
+
+        function appendMessage(message) {
+            const chatHistory = document.getElementById('chatHistory');
+            const div = document.createElement('div');
+            div.className = 'message';
+            
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+            meta.innerHTML = `
+                <span style="color: ${message.indicativo_color || '#3498db'}">${message.indicativo}</span>
+                <span>${message.timestamp}</span>
+            `;
+            
+            const content = document.createElement('div');
+            content.className = 'content';
+            
+            if (message.content.type === 'location') {
+                content.className += ' location';
+                content.innerHTML = `
+                    <strong>Ubicación:</strong> ${message.content.lat}, ${message.content.lng}<br>
+                    ${message.content.description || ''}
+                `;
+            } else {
+                content.textContent = message.content.text || '';
+            }
+            
+            div.appendChild(meta);
+            div.appendChild(content);
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        function appendSystemMessage(message) {
+            const chatHistory = document.getElementById('chatHistory');
+            const div = document.createElement('div');
+            div.className = 'message system';
+            div.innerHTML = `<em>${message}</em>`;
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        function loadIncidents() {
+            fetch(`/events/${eventId}/incidents`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        incidents = data.incidents;
+                        displayIncidents();
+                        updateMap();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function displayIncidents() {
+            const container = document.getElementById('incidentList');
+            container.innerHTML = '';
+
+            incidents.forEach(incident => {
+                const div = document.createElement('div');
+                div.className = 'incident-item';
+                div.innerHTML = `
+                    <div class="incident-header">
+                        <span class="incident-number">#${incident.incident_number}</span>
+                        <span class="incident-status status-${incident.estado}">${incident.estado}</span>
+                    </div>
+                    <div class="incident-details">
+                        <p><strong>Indicativo:</strong> ${incident.reportado_por}</p>
+                        <p><strong>Tipo:</strong> ${incident.tipo}</p>
+                        <p><strong>Descripción:</strong> ${incident.descripcion}</p>
+                        ${incident.dorsal ? `<p><strong>Dorsal:</strong> ${incident.dorsal}</p>` : ''}
+                        ${incident.patologia ? `<p><strong>Patología:</strong> ${incident.patologia}</p>` : ''}
+                    </div>
+                    <div class="assignment-list">
+                        ${incident.assignments.map(assignment => `
+                            <div class="assignment-item">
+                                ${assignment.asignado_a}
+                                <span class="assignment-status status-${assignment.estado}">${assignment.estado}</span>
+                                <button onclick="updateAssignment(${incident.id}, ${assignment.id}, '${getNextStatus(assignment.estado)}')">
+                                    Avanzar Estado
+                                </button>
+                            </div>
+                        `).join('')}
+                        <button onclick="addAssignment(${incident.id})">Asignar Recurso</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateMap() {
+            // Limpiar marcadores existentes
+            Object.values(markers).forEach(marker => marker.remove());
+            markers = {};
+
+            // Agregar nuevos marcadores
+            incidents.forEach(incident => {
+                if (incident.lat && incident.lng) {
+                    const marker = L.marker([incident.lat, incident.lng])
+                        .bindPopup(`
+                            <strong>#${incident.incident_number}</strong><br>
+                            ${incident.tipo}<br>
+                            ${incident.descripcion}
+                        `);
+                    marker.addTo(map);
+                    markers[incident.id] = marker;
+                }
+            });
+        }
+
+        function createIncident() {
+            const formData = {
+                reportado_por: document.getElementById('indicativo').value,
+                tipo: document.getElementById('tipo').value,
+                descripcion: document.getElementById('descripcion').value,
+                dorsal: document.getElementById('dorsal').value,
+                patologia: document.getElementById('patologia').value
+            };
+
+            fetch(`/events/${eventId}/incidents`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('incidentForm').reset();
+                    loadIncidents();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function addAssignment(incidentId) {
+            const asignado_a = prompt('Ingrese el indicativo del recurso:');
+            if (!asignado_a) return;
+
+            fetch(`/events/${eventId}/incidents/${incidentId}/assignments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ asignado_a })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    loadIncidents();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function updateAssignment(incidentId, assignmentId, newStatus) {
+            fetch(`/events/${eventId}/incidents/${incidentId}/assignments/${assignmentId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado: newStatus })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    loadIncidents();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function getNextStatus(currentStatus) {
+            const statusFlow = {
+                'pre-avisado': 'avisado y en camino',
+                'avisado y en camino': 'en el lugar',
+                'en el lugar': 'desasignado'
+            };
+            return statusFlow[currentStatus] || 'pre-avisado';
+        }
+
+        // Actualizar cada 30 segundos
+        setInterval(loadIncidents, 30000);
+    </script>
 </body>
 </html> 
