@@ -208,6 +208,7 @@
                 <div class="form-group">
                     <label>Localización:</label>
                     <div id="incidentMap" style="height:200px; width:100%; border-radius:8px; margin-bottom:8px;"></div>
+                    <div id="incidentAddressDisplay" style="font-size:0.9em; color:#555; margin-bottom:5px; min-height:1.2em;"></div>
                     <label for="incidentLat">Latitud:</label>
                     <input type="number" id="incidentLat" name="lat" step="any" style="width:40%;">
                     <label for="incidentLng">Longitud:</label>
@@ -756,6 +757,9 @@ async function openIncidentModalForEdit(incidentId) {
             // Mapa
             document.getElementById('incidentLat').value = incident.lat || '';
             document.getElementById('incidentLng').value = incident.lng || '';
+            // Mostrar dirección formateada si está disponible
+            document.getElementById('incidentAddressDisplay').textContent = incident.direccion_formateada || '';
+
             if (incidentMap) {
                  if (incidentMarker) incidentMap.removeLayer(incidentMarker);
                  incidentMarker = null; // Reset marker

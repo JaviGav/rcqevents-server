@@ -8,6 +8,7 @@ from app.models.indicativo import Indicativo
 from app.models.incident import Incident
 from app.models.incident_assignment import IncidentAssignment
 from sqlalchemy import func
+import requests
 
 bp = Blueprint('events', __name__, url_prefix='/events')
 
@@ -196,8 +197,41 @@ def event_callsigns(event_id):
     return render_template('event_callsigns.html', event=event, indicativos=indicativos)
 
 # --- INCIDENTES ---
-def incident_to_dict(incident):
-    return {
+
+def get_address_from_coords(lat, lng):
+    if lat is None or lng is None:
+        return None
+    try:
+        # Usar el user-agent es una buena práctica y a veces requerido por Nominatim
+        headers = {
+            'User-Agent': 'RCQEventsServer/1.0 (contacto@tuemail.com)' # Cambia esto por tu app y email
+        }
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&zoom=18&addressdetails=1"
+        response = requests.get(url, headers=headers, timeout=5) # Timeout de 5 segundos
+        response.raise_for_status() # Lanza error para respuestas 4xx/5xx
+        data = response.json()
+        address = data.get('address')
+        if address:
+            road = address.get('road', '')
+            house_number = address.get('house_number', '')
+            city = address.get('city', address.get('town', address.get('village', '')))
+            
+            display_address = road
+            if house_number:
+                display_address += f", {house_number}"
+            # if city:
+            #     display_address += f" - {city}" # Opcional: añadir ciudad
+            return display_address if display_address else data.get('display_name')
+        return data.get('display_name') # Fallback al display_name completo
+    except requests.exceptions.RequestException as e:
+        print(f"Error en geocodificación inversa: {e}")
+        return None
+    except Exception as e:
+        print(f"Error inesperado en geocodificación inversa: {e}")
+        return None
+
+def incident_to_dict(incident, fetch_address=False):
+    data = {
         'id': incident.id,
         'incident_number': incident.incident_number,
         'event_id': incident.event_id,
@@ -216,8 +250,12 @@ def incident_to_dict(incident):
         'fecha_finalizado': incident.fecha_finalizado.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_finalizado else None,
         'is_deleted': incident.is_deleted,
         'deleted_at': incident.deleted_at.strftime('%Y-%m-%d %H:%M:%S') if incident.deleted_at else None,
-        'assignments': [assignment_to_dict(a) for a in incident.assignments]
+        'assignments': [assignment_to_dict(a) for a in incident.assignments],
+        'direccion_formateada': None
     }
+    if fetch_address and incident.lat is not None and incident.lng is not None:
+        data['direccion_formateada'] = get_address_from_coords(incident.lat, incident.lng)
+    return data
 
 def assignment_to_dict(a):
     return a.to_dict()
@@ -232,7 +270,8 @@ def get_incidents(event_id):
         query = query.filter_by(is_deleted=False)
     
     incidents = query.order_by(Incident.incident_number.asc()).all()
-    return jsonify({'status': 'success', 'incidents': [incident_to_dict(i) for i in incidents]})
+    # No hacemos fetch_address para la lista completa por defecto para evitar muchas llamadas API
+    return jsonify({'status': 'success', 'incidents': [incident_to_dict(i, fetch_address=False) for i in incidents]})
 
 @bp.route('/<int:event_id>/incidents', methods=['POST'])
 def create_incident(event_id):
@@ -266,7 +305,8 @@ def create_incident(event_id):
 @bp.route('/<int:event_id>/incidents/<int:incident_id>', methods=['GET'])
 def get_incident(event_id, incident_id):
     incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
-    return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
+    # Hacemos fetch_address aquí porque es para un solo incidente (ej. para editar)
+    return jsonify({'status': 'success', 'incident': incident_to_dict(incident, fetch_address=True)})
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>', methods=['PUT'])
 def update_incident(event_id, incident_id):
