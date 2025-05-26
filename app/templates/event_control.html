@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Evento - {{ event.nombre }}</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: #2c3e50; color: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .chat-container { display: flex; gap: 20px; }
+        .chat-panel { flex: 2; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .map-panel { flex: 1; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-width: 350px; }
+        #chatHistory { height: 350px; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; padding: 10px; background: #fafafa; }
+        #map { height: 350px; width: 100%; border-radius: 8px; }
+        .message { margin-bottom: 10px; }
+        .message .meta { font-size: 12px; color: #888; }
+        .message .content { font-size: 15px; }
+        .message.location { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 5px 10px; border-radius: 4px; }
+        .indicativo-select { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Control de Evento: {{ event.nombre }}</h1>
+            <a href="/events/" style="color:white;">← Volver a Eventos</a>
+        </div>
+        <!-- ... resto del HTML y JS igual que en EVENT_CONTROL_TEMPLATE ... -->
+    </div>
+</body>
+</html> 

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración de Eventos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .events-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="datetime-local"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.delete {
+            background-color: #e74c3c;
+        }
+        button.delete:hover {
+            background-color: #c0392b;
+        }
+        button.edit {
+            background-color: #f39c12;
+        }
+        button.edit:hover {
+            background-color: #e67e22;
+        }
+        button.manage {
+            background-color: #27ae60;
+        }
+        button.manage:hover {
+            background-color: #219150;
+        }
+        button.control {
+            background-color: #8e44ad;
+        }
+        button.control:hover, a.control:hover {
+            background-color: #6c3483;
+        }
+        a.control {
+            display: inline-block;
+            background-color: #8e44ad;
+            color: white !important;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 5px;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .alert-error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .status-active {
+            background-color: #27ae60;
+            color: white;
+        }
+        .status-inactive {
+            background-color: #e74c3c;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎉 Administración de Eventos</h1>
+        <p>Gestiona todos tus eventos desde aquí</p>
+    </div>
+    <div id="alertContainer"></div>
+    <div id="eventFormContainer" class="form-container" style="display:none;">
+        <h2 id="formTitle">Agregar Nuevo Evento</h2>
+        <form id="eventForm">
+            <input type="hidden" id="eventId" value="">
+            <div class="form-group">
+                <label for="nombre">Nombre del Evento:</label>
+                <input type="text" id="nombre" name="nombre" required>
+            </div>
+            <div class="form-group">
+                <label for="fecha">Fecha y Hora:</label>
+                <input type="datetime-local" id="fecha" name="fecha" required>
+            </div>
+            <button type="submit" id="submitBtn">Actualizar Evento</button>
+            <button type="button" id="cancelBtn" onclick="cancelEdit()">Cancelar</button>
+        </form>
+    </div>
+    <div class="events-container">
+        <h2>Lista de Eventos</h2>
+        <button id="addEventBtn">Añadir Evento</button>
+        <table id="eventsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="eventsTableBody">
+            </tbody>
+        </table>
+    </div>
+    <script>
+        // ... (el JS original del template va aquí, igual que en ADMIN_TEMPLATE) ...
+    </script>
+</body>
+</html> 

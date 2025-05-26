@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, render_template_string
+from flask import Blueprint, jsonify, request, render_template
 from app.models.event import Event
 from app.models.user import User
 from app.extensions import db
@@ -14,7 +14,7 @@ bp = Blueprint('events', __name__, url_prefix='/events')
 # Página web de administración
 @bp.route('/')
 def admin_page():
-    return render_template_string(ADMIN_TEMPLATE)
+    return render_template('admin.html')
 
 # API endpoints
 @bp.route('/api', methods=['GET'])
@@ -180,13 +180,13 @@ def delete_indicativo(event_id, indicativo_id):
 @bp.route('/<int:event_id>')
 def event_detail(event_id):
     event = Event.query.get_or_404(event_id)
-    return render_template_string(EVENT_DETAIL_TEMPLATE, event=event)
+    return render_template('event_detail.html', event=event)
 
 @bp.route('/<int:event_id>/control')
 def event_control(event_id):
     event = Event.query.get_or_404(event_id)
     indicativos = Indicativo.query.filter_by(event_id=event_id).all()
-    return render_template_string(EVENT_CONTROL_TEMPLATE, event=event, indicativos=indicativos)
+    return render_template('event_control.html', event=event, indicativos=indicativos)
 
 # --- INCIDENTES ---
 def incident_to_dict(incident):
