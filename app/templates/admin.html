@@ -247,7 +247,7 @@
             events.forEach(event => {
                 const tr = document.createElement('tr');
                 const fecha = new Date(event.fecha);
-                tr.innerHTML = `<td>${event.id}</td><td>${event.nombre}</td><td>${fecha.toLocaleString()}</td><td><span class="status-badge status-${event.activo ? 'active' : 'inactive'}" onclick="toggleEventStatus(${event.id})">${event.activo ? 'Activo' : 'Inactivo'}</span></td><td><button class="edit" onclick="editEvent(${JSON.stringify(event).replace(/"/g, '&quot;')})">Editar</button><button class="delete" onclick="deleteEvent(${event.id})">Eliminar</button><a href="/events/${event.id}" class="control">Gestionar</a><a href="/events/${event.id}/control" class="control">Control</a></td>`;
+                tr.innerHTML = `<td>${event.id}</td><td>${event.nombre}</td><td>${fecha.toLocaleString()}</td><td><span class="status-badge status-${event.activo ? 'active' : 'inactive'}" onclick="toggleEventStatus(${event.id})">${event.activo ? 'Activo' : 'Inactivo'}</span></td><td><button class="edit" onclick="editEvent(${JSON.stringify(event).replace(/"/g, '&quot;')})">Editar</button><button class="delete" onclick="deleteEvent(${event.id})">Eliminar</button><a href="/events/${event.id}/callsigns" class="manage">Indicativos</a><a href="/events/${event.id}/control" class="control">Control</a></td>`;
                 tbody.appendChild(tr);
             });
         }
