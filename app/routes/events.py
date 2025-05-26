@@ -1137,7 +1137,8 @@ function appendMessage(msg) {
             }
         });
     } else if (msg.content.type === 'assign_service') {
-        div.innerHTML += `<div class=\"content\">🛠️ <b>Servicio asignado:</b> ${msg.content.text}<br>📍 Ubicación: (${msg.content.lat}, ${msg.content.lng})</div>`;
+        const gmaps = `https://maps.google.com/?q=${msg.content.lat},${msg.content.lng}`;
+        div.innerHTML += `<div class=\"content assign-service-msg\" style=\"background:#ffeaea;border-left:5px solid #e74c3c;padding:7px 10px;border-radius:4px;\">🏍️ <b>Servicio asignado:</b> ${msg.content.text}<br>📍 <a href='${gmaps}' target='_blank' style='color:#c0392b;text-decoration:underline;font-weight:bold;'>Ver ubicación en Google Maps</a></div>`;
     } else {
         div.innerHTML += `<div class=\"content\">[${msg.content.type}]</div>`;
     }
