@@ -19,9 +19,294 @@
         .message .content { font-size: 15px; }
         .message.location { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 5px 10px; border-radius: 4px; }
         .indicativo-select { margin-bottom: 10px; }
+        .incident-form { margin-top: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea { 
+            width: 100%; 
+            padding: 8px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            font-size: 14px; 
+        }
+        .form-group textarea { height: 100px; }
+        button { 
+            background: #3498db; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 14px; 
+        }
+        button:hover { background: #2980b9; }
+        .incident-list { margin-top: 20px; }
+        .incident-item { 
+            background: #fff; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin-bottom: 10px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+        }
+        .incident-header { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 10px; 
+        }
+        .incident-number { 
+            font-weight: bold; 
+            color: #2c3e50; 
+        }
+        .incident-status { 
+            padding: 3px 8px; 
+            border-radius: 12px; 
+            font-size: 12px; 
+            font-weight: bold; 
+        }
+        .status-active { background: #27ae60; color: white; }
+        .status-closed { background: #e74c3c; color: white; }
+        .incident-details { color: #666; font-size: 14px; }
+        .assignment-list { margin-top: 10px; }
+        .assignment-item { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin-bottom: 5px; 
+        }
+        .assignment-status { 
+            display: inline-block; 
+            padding: 2px 6px; 
+            border-radius: 10px; 
+            font-size: 12px; 
+            margin-left: 5px; 
+        }
+        .status-pre-avisado { background: #f1c40f; color: #000; }
+        .status-avisado { background: #e67e22; color: white; }
+        .status-en-camino { background: #3498db; color: white; }
+        .status-en-lugar { background: #27ae60; color: white; }
+        .status-desasignado { background: #95a5a6; color: white; }
     </style>
 </head>
 <body>
-<!-- El resto del contenido es igual al de EVENT_CONTROL_TEMPLATE, incluyendo los scripts y modales -->
+    <div class="container">
+        <div class="header">
+            <h1>Control de Evento: {{ event.nombre }}</h1>
+            <p>ID: {{ event.id }} | Fecha: {{ event.fecha }}</p>
+            <a href="/events/{{ event.id }}" style="color: white;">← Volver a Detalles</a>
+        </div>
+
+        <div class="chat-container">
+            <div class="chat-panel">
+                <h2>Incidentes</h2>
+                <div class="incident-form">
+                    <form id="incidentForm">
+                        <div class="form-group">
+                            <label for="indicativo">Indicativo:</label>
+                            <select id="indicativo" name="indicativo" required>
+                                <option value="">Seleccionar indicativo...</option>
+                                {% for indicativo in indicativos %}
+                                <option value="{{ indicativo.indicativo }}">{{ indicativo.indicativo }} - {{ indicativo.nombre or '' }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tipo">Tipo de Incidente:</label>
+                            <select id="tipo" name="tipo" required>
+                                <option value="">Seleccionar tipo...</option>
+                                <option value="medical">Médico</option>
+                                <option value="security">Seguridad</option>
+                                <option value="logistics">Logística</option>
+                                <option value="other">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="descripcion">Descripción:</label>
+                            <textarea id="descripcion" name="descripcion" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="dorsal">Dorsal (opcional):</label>
+                            <input type="text" id="dorsal" name="dorsal">
+                        </div>
+                        <div class="form-group">
+                            <label for="patologia">Patología (opcional):</label>
+                            <input type="text" id="patologia" name="patologia">
+                        </div>
+                        <button type="submit">Crear Incidente</button>
+                    </form>
+                </div>
+                <div id="incidentList" class="incident-list">
+                    <!-- Los incidentes se cargarán aquí dinámicamente -->
+                </div>
+            </div>
+
+            <div class="map-panel">
+                <h2>Mapa</h2>
+                <div id="map"></div>
+                <div id="chatHistory"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        let map;
+        let markers = {};
+        let incidents = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar mapa
+            map = L.map('map').setView([40.4168, -3.7038], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Cargar incidentes
+            loadIncidents();
+
+            // Manejar envío de formulario
+            document.getElementById('incidentForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                createIncident();
+            });
+        });
+
+        function loadIncidents() {
+            fetch(`/events/{{ event.id }}/incidents`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        incidents = data.incidents;
+                        displayIncidents();
+                        updateMap();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function displayIncidents() {
+            const container = document.getElementById('incidentList');
+            container.innerHTML = '';
+
+            incidents.forEach(incident => {
+                const div = document.createElement('div');
+                div.className = 'incident-item';
+                div.innerHTML = `
+                    <div class="incident-header">
+                        <span class="incident-number">#${incident.incident_number}</span>
+                        <span class="incident-status status-${incident.estado}">${incident.estado}</span>
+                    </div>
+                    <div class="incident-details">
+                        <p><strong>Indicativo:</strong> ${incident.reportado_por}</p>
+                        <p><strong>Tipo:</strong> ${incident.tipo}</p>
+                        <p><strong>Descripción:</strong> ${incident.descripcion}</p>
+                        ${incident.dorsal ? `<p><strong>Dorsal:</strong> ${incident.dorsal}</p>` : ''}
+                        ${incident.patologia ? `<p><strong>Patología:</strong> ${incident.patologia}</p>` : ''}
+                    </div>
+                    <div class="assignment-list">
+                        ${incident.assignments.map(assignment => `
+                            <div class="assignment-item">
+                                ${assignment.asignado_a}
+                                <span class="assignment-status status-${assignment.estado}">${assignment.estado}</span>
+                                <button onclick="updateAssignment(${incident.id}, ${assignment.id}, '${getNextStatus(assignment.estado)}')">
+                                    Avanzar Estado
+                                </button>
+                            </div>
+                        `).join('')}
+                        <button onclick="addAssignment(${incident.id})">Asignar Recurso</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateMap() {
+            // Limpiar marcadores existentes
+            Object.values(markers).forEach(marker => marker.remove());
+            markers = {};
+
+            // Agregar nuevos marcadores
+            incidents.forEach(incident => {
+                if (incident.lat && incident.lng) {
+                    const marker = L.marker([incident.lat, incident.lng])
+                        .bindPopup(`
+                            <strong>#${incident.incident_number}</strong><br>
+                            ${incident.tipo}<br>
+                            ${incident.descripcion}
+                        `);
+                    marker.addTo(map);
+                    markers[incident.id] = marker;
+                }
+            });
+        }
+
+        function createIncident() {
+            const formData = {
+                reportado_por: document.getElementById('indicativo').value,
+                tipo: document.getElementById('tipo').value,
+                descripcion: document.getElementById('descripcion').value,
+                dorsal: document.getElementById('dorsal').value,
+                patologia: document.getElementById('patologia').value
+            };
+
+            fetch(`/events/{{ event.id }}/incidents`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('incidentForm').reset();
+                    loadIncidents();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function addAssignment(incidentId) {
+            const asignado_a = prompt('Ingrese el indicativo del recurso:');
+            if (!asignado_a) return;
+
+            fetch(`/events/{{ event.id }}/incidents/${incidentId}/assignments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ asignado_a })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    loadIncidents();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function updateAssignment(incidentId, assignmentId, newStatus) {
+            fetch(`/events/{{ event.id }}/incidents/${incidentId}/assignments/${assignmentId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado: newStatus })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    loadIncidents();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function getNextStatus(currentStatus) {
+            const statusFlow = {
+                'pre-avisado': 'avisado y en camino',
+                'avisado y en camino': 'en el lugar',
+                'en el lugar': 'desasignado'
+            };
+            return statusFlow[currentStatus] || 'pre-avisado';
+        }
+
+        // Actualizar cada 30 segundos
+        setInterval(loadIncidents, 30000);
+    </script>
 </body>
 </html> 
