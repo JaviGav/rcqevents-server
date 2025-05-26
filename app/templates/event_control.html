@@ -19,6 +19,21 @@
         .message .content { font-size: 15px; }
         .message.location { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 5px 10px; border-radius: 4px; }
         .indicativo-select { margin-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input[type="text"], .form-group input[type="number"], .form-group select {
+            width: 90%; /* O el ancho que prefieras */
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box; /* Para que padding no afecte el width total */
+        }
+        .datalist-arrow {
+            margin-left: -20px; /* Ajusta para superponer o colocar cerca del input */
+            cursor: default; /* Para que no parezca clickable si no lo es */
+            display: inline-block; /* Para que esté en la misma línea */
+            /* Podrías añadir font-size, color, etc. */
+        }
     </style>
 </head>
 <body>
@@ -140,7 +155,8 @@
             <form id="incidentForm">
                 <div class="form-group">
                     <label for="incidentTipo">Tipo de incidente:</label>
-                    <input type="text" id="incidentTipo" name="tipo" list="tipoSugerencias" required style="width:90%;">
+                    <input type="text" id="incidentTipo" name="tipo" list="tipoSugerencias" required style="width:90%;" placeholder="Escribe o selecciona tipo...">
+                    <span class="datalist-arrow">▼</span>
                     <datalist id="tipoSugerencias">
                         <option value="🚑 Asistencia Médica">
                         <option value="🚧 Incidencia Circuito">
@@ -167,7 +183,8 @@
                 </div>
                 <div class="form-group">
                     <label for="incidentReportadoPor">Reportado por:</label>
-                    <input type="text" id="incidentReportadoPor" name="reportado_por" list="reportadoSugerencias" style="width:90%;">
+                    <input type="text" id="incidentReportadoPor" name="reportado_por" list="reportadoSugerencias" style="width:90%;" placeholder="Escribe o selecciona quién reporta...">
+                    <span class="datalist-arrow">▼</span>
                     <datalist id="reportadoSugerencias">
                         <option value="CME">
                         <option value="GUB">
