@@ -210,6 +210,10 @@ def incident_to_dict(incident):
         'dorsal': incident.dorsal,
         'patologia': incident.patologia,
         'fecha_creacion': incident.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_creacion else None,
+        'fecha_pre_activado': incident.fecha_pre_activado.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_pre_activado else None,
+        'fecha_activado': incident.fecha_activado.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_activado else None,
+        'fecha_stand_by': incident.fecha_stand_by.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_stand_by else None,
+        'fecha_finalizado': incident.fecha_finalizado.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_finalizado else None,
         'assignments': [assignment_to_dict(a) for a in incident.assignments]
     }
 
@@ -235,18 +239,26 @@ def create_incident(event_id):
     data = request.get_json()
     # Calcular el siguiente incident_number para el evento
     max_num = db.session.query(func.max(Incident.incident_number)).filter_by(event_id=event_id).scalar() or 0
+    now = datetime.utcnow()
+    nuevo_estado = data.get('estado', 'activo')
     incident = Incident(
         event_id=event_id,
         incident_number=max_num + 1,
-        estado=data.get('estado', 'activo'),
+        estado=nuevo_estado,
         reportado_por=data.get('reportado_por'),
         tipo=data.get('tipo'),
         descripcion=data.get('descripcion'),
         lat=data.get('lat'),
         lng=data.get('lng'),
         dorsal=data.get('dorsal'),
-        patologia=data.get('patologia')
+        patologia=data.get('patologia'),
+        fecha_creacion=now
     )
+    if nuevo_estado == 'pre-activado': incident.fecha_pre_activado = now
+    elif nuevo_estado == 'activo': incident.fecha_activado = now
+    elif nuevo_estado == 'stand-by': incident.fecha_stand_by = now
+    elif nuevo_estado == 'finalizado': incident.fecha_finalizado = now
+
     db.session.add(incident)
     db.session.commit()
     return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
@@ -260,6 +272,18 @@ def get_incident(event_id, incident_id):
 def update_incident(event_id, incident_id):
     incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
     data = request.get_json()
+    now = datetime.utcnow()
+
+    if 'estado' in data and data['estado'] != incident.estado:
+        nuevo_estado = data['estado']
+        if nuevo_estado == 'pre-activado': incident.fecha_pre_activado = now
+        elif nuevo_estado == 'activo': incident.fecha_activado = now
+        elif nuevo_estado == 'stand-by': incident.fecha_stand_by = now
+        elif nuevo_estado == 'finalizado': incident.fecha_finalizado = now
+        # Aquí podrías querer limpiar las otras fechas de estado si la lógica lo requiere
+        # Por ejemplo, si pasa de 'activo' a 'finalizado', ¿fecha_activado debe permanecer o limpiarse?
+        # Por ahora, solo se añade la nueva fecha.
+
     for field in ['estado', 'reportado_por', 'tipo', 'descripcion', 'lat', 'lng', 'dorsal', 'patologia']:
         if field in data:
             setattr(incident, field, data[field])

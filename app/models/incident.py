@@ -15,6 +15,10 @@ class Incident(db.Model):
     dorsal = db.Column(db.String(32))
     patologia = db.Column(db.String(128))
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_pre_activado = db.Column(db.DateTime, nullable=True)
+    fecha_activado = db.Column(db.DateTime, nullable=True)
+    fecha_stand_by = db.Column(db.DateTime, nullable=True)
+    fecha_finalizado = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (
         db.UniqueConstraint('event_id', 'incident_number', name='uq_event_incident_number'),
