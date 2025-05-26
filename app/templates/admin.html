@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración de Eventos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .events-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="datetime-local"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.delete {
+            background-color: #e74c3c;
+        }
+        button.delete:hover {
+            background-color: #c0392b;
+        }
+        button.edit {
+            background-color: #f39c12;
+        }
+        button.edit:hover {
+            background-color: #e67e22;
+        }
+        button.manage {
+            background-color: #27ae60;
+        }
+        button.manage:hover {
+            background-color: #219150;
+        }
+        button.control {
+            background-color: #8e44ad;
+        }
+        button.control:hover, a.control:hover {
+            background-color: #6c3483;
+        }
+        a.control {
+            display: inline-block;
+            background-color: #8e44ad;
+            color: white !important;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 5px;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .alert-error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .status-active {
+            background-color: #27ae60;
+            color: white;
+        }
+        .status-inactive {
+            background-color: #e74c3c;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎉 Administración de Eventos</h1>
+        <p>Gestiona todos tus eventos desde aquí</p>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <div id="eventFormContainer" class="form-container" style="display:none;">
+        <h2 id="formTitle">Agregar Nuevo Evento</h2>
+        <form id="eventForm">
+            <input type="hidden" id="eventId" value="">
+            <div class="form-group">
+                <label for="nombre">Nombre del Evento:</label>
+                <input type="text" id="nombre" name="nombre" required>
+            </div>
+            <div class="form-group">
+                <label for="fecha">Fecha y Hora:</label>
+                <input type="datetime-local" id="fecha" name="fecha" required>
+            </div>
+            <button type="submit" id="submitBtn">Actualizar Evento</button>
+            <button type="button" id="cancelBtn" onclick="cancelEdit()">Cancelar</button>
+        </form>
+    </div>
+
+    <div class="events-container">
+        <h2>Lista de Eventos</h2>
+        <button id="addEventBtn">Añadir Evento</button>
+        <table id="eventsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="eventsTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let editingEventId = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadEvents();
+            
+            document.getElementById('addEventBtn').addEventListener('click', function() {
+                showEventForm();
+            });
+
+            document.getElementById('eventForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (editingEventId) {
+                    updateEvent();
+                } else {
+                    createEvent();
+                }
+            });
+        });
+
+        function showEventForm(event = null) {
+            const formContainer = document.getElementById('eventFormContainer');
+            const formTitle = document.getElementById('formTitle');
+            const submitBtn = document.getElementById('submitBtn');
+            const nombreInput = document.getElementById('nombre');
+            const fechaInput = document.getElementById('fecha');
+
+            if (event) {
+                editingEventId = event.id;
+                formTitle.textContent = 'Editar Evento';
+                submitBtn.textContent = 'Actualizar Evento';
+                nombreInput.value = event.nombre;
+                // Convertir la fecha al formato requerido por el input datetime-local
+                const fecha = new Date(event.fecha);
+                fechaInput.value = fecha.toISOString().slice(0, 16);
+            } else {
+                editingEventId = null;
+                formTitle.textContent = 'Agregar Nuevo Evento';
+                submitBtn.textContent = 'Crear Evento';
+                nombreInput.value = '';
+                fechaInput.value = '';
+            }
+
+            formContainer.style.display = 'block';
+        }
+
+        function cancelEdit() {
+            document.getElementById('eventFormContainer').style.display = 'none';
+            editingEventId = null;
+        }
+
+        function loadEvents() {
+            fetch('/events/api')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayEvents(data.events);
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error al cargar los eventos: ' + error.message, 'error');
+                });
+        }
+
+        function displayEvents(events) {
+            const tbody = document.getElementById('eventsTableBody');
+            tbody.innerHTML = '';
+
+            events.forEach(event => {
+                const tr = document.createElement('tr');
+                const fecha = new Date(event.fecha);
+                
+                tr.innerHTML = `
+                    <td>${event.id}</td>
+                    <td>${event.nombre}</td>
+                    <td>${fecha.toLocaleString()}</td>
+                    <td>
+                        <span class="status-badge status-${event.activo ? 'active' : 'inactive'}" 
+                              onclick="toggleEventStatus(${event.id})">
+                            ${event.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="edit" onclick="editEvent(${JSON.stringify(event).replace(/"/g, '&quot;')})">
+                            Editar
+                        </button>
+                        <button class="delete" onclick="deleteEvent(${event.id})">
+                            Eliminar
+                        </button>
+                        <a href="/events/${event.id}" class="control">
+                            Gestionar
+                        </a>
+                        <a href="/events/${event.id}/control" class="control">
+                            Control
+                        </a>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function createEvent() {
+            const formData = {
+                nombre: document.getElementById('nombre').value,
+                fecha: document.getElementById('fecha').value
+            };
+
+            fetch('/events/api', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Evento creado exitosamente', 'success');
+                    cancelEdit();
+                    loadEvents();
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Error al crear el evento: ' + error.message, 'error');
+            });
+        }
+
+        function updateEvent() {
+            const formData = {
+                nombre: document.getElementById('nombre').value,
+                fecha: document.getElementById('fecha').value
+            };
+
+            fetch(`/events/api/${editingEventId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Evento actualizado exitosamente', 'success');
+                    cancelEdit();
+                    loadEvents();
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Error al actualizar el evento: ' + error.message, 'error');
+            });
+        }
+
+        function editEvent(event) {
+            showEventForm(event);
+        }
+
+        function deleteEvent(eventId) {
+            if (!confirm('¿Estás seguro de que deseas eliminar este evento?')) {
+                return;
+            }
+
+            fetch(`/events/api/${eventId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Evento eliminado exitosamente', 'success');
+                    loadEvents();
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Error al eliminar el evento: ' + error.message, 'error');
+            });
+        }
+
+        function toggleEventStatus(eventId) {
+            fetch(`/events/api/${eventId}/toggle`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert(data.message, 'success');
+                    loadEvents();
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Error al cambiar el estado del evento: ' + error.message, 'error');
+            });
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html> 
