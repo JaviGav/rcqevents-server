@@ -194,9 +194,436 @@
         </div>
     </div>
 </div>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-    // ... (resto del código JavaScript)
+const eventId = {{ event.id }};
+const indicativoKey = `rcq_indicativo_${eventId}`;
+let indicativoId = localStorage.getItem(indicativoKey) || '';
+const indicativoSelect = document.getElementById('indicativoSelect');
+indicativoSelect.value = indicativoId;
+indicativoSelect.addEventListener('change', function() {
+    indicativoId = this.value;
+    if (indicativoId) localStorage.setItem(indicativoKey, indicativoId);
+});
+// Socket.IO
+let socket = null;
+let joined = false;
+const chatHistory = document.getElementById('chatHistory');
+// --- MAPA DE LOCALIZACIONES: solo última ubicación de cada indicativo ---
+const lastLocations = {}; // indicativo_id -> msg
+const markerRefs = {}; // indicativo_id -> marker
+let selectedMarker = null;
+
+// Mapa principal de localizaciones
+const map = L.map('map').setView([41.3874, 2.1686], 10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+// --- Auto-centro del mapa ---
+let autoCenter = true;
+let programmaticMoves = 0;
+
+// Botón de auto-centro
+const autoCenterBtn = document.createElement('button');
+autoCenterBtn.id = 'autoCenterBtn';
+autoCenterBtn.title = 'Activar/desactivar auto-centro';
+autoCenterBtn.className = 'leaflet-control leaflet-bar';
+autoCenterBtn.style.position = 'absolute';
+autoCenterBtn.style.top = '54px';
+autoCenterBtn.style.right = '10px';
+autoCenterBtn.style.zIndex = 1001;
+autoCenterBtn.style.width = '34px';
+autoCenterBtn.style.height = '34px';
+autoCenterBtn.style.lineHeight = '32px';
+autoCenterBtn.style.fontSize = '20px';
+autoCenterBtn.style.padding = '0';
+autoCenterBtn.style.display = 'flex';
+autoCenterBtn.style.alignItems = 'center';
+autoCenterBtn.style.justifyContent = 'center';
+autoCenterBtn.innerHTML = '<span id="autoCenterIcon">🎯</span>';
+
+document.querySelector('.map-panel > div').appendChild(autoCenterBtn);
+
+function updateAutoCenterBtn() {
+    autoCenterBtn.style.background = autoCenter ? '#27ae60' : '#eee';
+    autoCenterBtn.style.color = autoCenter ? '#fff' : '#888';
+    autoCenterBtn.title = autoCenter ? 'Auto-centro activado' : 'Auto-centro desactivado';
+}
+updateAutoCenterBtn();
+
+autoCenterBtn.addEventListener('click', function() {
+    autoCenter = !autoCenter;
+    updateAutoCenterBtn();
+    if (autoCenter) {
+        programmaticMoves++;
+        updateLocationMarkers(true);
+    }
+});
+
+map.on('movestart zoomstart', function(e) {
+    if (autoCenter && programmaticMoves === 0) {
+        autoCenter = false;
+        updateAutoCenterBtn();
+    }
+});
+map.on('moveend zoomend', function(e) {
+    if (programmaticMoves > 0) {
+        programmaticMoves--;
+    }
+});
+
+function updateLocationMarkers(autoFit = false) {
+    // Limpiar marcadores
+    Object.values(markerRefs).forEach(m => map.removeLayer(m));
+    Object.keys(markerRefs).forEach(k => delete markerRefs[k]);
+    const markerList = [];
+    // Añadir solo la última ubicación de cada indicativo
+    Object.values(lastLocations).forEach(msg => {
+        if (msg.content.type === 'location') {
+            const color = msg.indicativo_color || '#3498db';
+            const marker = L.marker([msg.content.lat, msg.content.lng], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style=\"background:${color};width:18px;height:18px;border-radius:50%;border:2px solid #fff;\"></div>`
+                })
+            }).addTo(map);
+            marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
+            markerRefs[msg.indicativo_id] = marker;
+            markerList.push(marker);
+        }
+    });
+    // Centrar mapa si se solicita y hay marcadores
+    if (autoFit && markerList.length > 0) {
+        programmaticMoves++;
+        if (markerList.length === 1) {
+            map.setView(markerList[0].getLatLng(), 15);
+        } else {
+            const group = L.featureGroup(markerList);
+            map.fitBounds(group.getBounds().pad(0.2));
+        }
+    }
+}
+
+// --- Lista de indicativos para lookup rápido por id ---
+const indicativosList = [
+    {% for ind in indicativos %}
+        {id: '{{ ind.id }}', indicativo: '{{ ind.indicativo }}', nombre: '{{ ind.nombre or '' }}'},
+    {% endfor %}
+];
+
+function appendMessage(msg) {
+    const div = document.createElement('div');
+    div.className = 'message' + (msg.content.type === 'location' ? ' location' : '');
+    const color = msg.indicativo_color || '#3498db';
+    let privado = '';
+    let destinatario = 'Todos';
+    if (msg.to_indicativo_id && msg.to_indicativo_id !== '' && msg.to_indicativo_id !== null) {
+        // Buscar el nombre del destinatario en la lista de indicativos
+        const dest = indicativosList.find(i => i.id == msg.to_indicativo_id);
+        destinatario = dest ? (dest.indicativo + (dest.nombre ? ' (' + dest.nombre + ')' : '')) : msg.to_indicativo_id;
+        privado = '<span style="color:#e67e22;font-size:12px;margin-left:6px;">(privado)</span>';
+    }
+    div.innerHTML = `<div class=\"meta\"><span style=\"display:inline-block;width:13px;height:13px;border-radius:50%;background:${color};border:1.5px solid #ccc;margin-right:5px;vertical-align:middle;\"></span><b>${msg.indicativo || ''}</b> → <b>${destinatario}</b> <span>${msg.timestamp}</span> ${privado}</div>`;
+    if (msg.content.type === 'text') {
+        div.innerHTML += `<div class=\"content\">${msg.content.text}</div>`;
+    } else if (msg.content.type === 'location') {
+        div.innerHTML += `<div class=\"content\">📍 Ubicación: (${msg.content.lat}, ${msg.content.lng})</div>`;
+        lastLocations[msg.indicativo_id] = {
+            ...msg,
+            indicativo_color: msg.indicativo_color || msg.color || '#3498db'
+        };
+        div.style.cursor = 'pointer';
+        div.addEventListener('click', function() {
+            const marker = markerRefs[msg.indicativo_id];
+            if (marker) {
+                map.setView([msg.content.lat, msg.content.lng], 15);
+                marker.openPopup();
+                if (selectedMarker) selectedMarker.setZIndexOffset(0);
+                marker.setZIndexOffset(1000);
+                selectedMarker = marker;
+            }
+        });
+    } else if (msg.content.type === 'assign_service') {
+        const gmaps = `https://maps.google.com/?q=${msg.content.lat},${msg.content.lng}`;
+        div.innerHTML += `<div class=\"content assign-service-msg\" style=\"background:#ffeaea;border-left:5px solid #e74c3c;padding:7px 10px;border-radius:4px;\">🏍️ <b>Servicio asignado:</b> ${msg.content.text}<br>📍 <a href='${gmaps}' target='_blank' style='color:#c0392b;text-decoration:underline;font-weight:bold;'>Ver ubicación en Google Maps</a></div>`;
+    } else {
+        div.innerHTML += `<div class=\"content\">[${msg.content.type}]</div>`;
+    }
+    chatHistory.appendChild(div);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+    if (msg.content.type === 'location') {
+        updateLocationMarkers(autoCenter);
+    } else {
+        updateLocationMarkers(false);
+    }
+}
+
+function joinChat() {
+    if (!indicativoId) return;
+    if (socket) socket.disconnect();
+    socket = io();
+    socket.emit('join_event', { event_id: eventId, indicativo_id: indicativoId });
+    joined = true;
+    socket.on('message_history', data => {
+        chatHistory.innerHTML = '';
+        Object.keys(lastLocations).forEach(k => delete lastLocations[k]);
+        Object.keys(markerRefs).forEach(k => { map.removeLayer(markerRefs[k]); delete markerRefs[k]; });
+        (data.messages || []).forEach(msg => {
+            appendMessage(msg);
+        });
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+        programmaticMoves++;
+        updateLocationMarkers(true);
+    });
+    socket.on('new_message', msg => {
+        appendMessage(msg);
+        locationModal.style.display = 'none';
+    });
+    socket.on('error', err => {
+        alert(err.message);
+    });
+}
+indicativoSelect.addEventListener('change', function() {
+    if (this.value) joinChat();
+});
+if (indicativoId) joinChat();
+document.getElementById('chatForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!indicativoId) return alert('Selecciona un indicativo');
+    const text = document.getElementById('chatInput').value.trim();
+    const toIndicativoId = document.getElementById('toIndicativoSelect').value || null;
+    if (!text) return;
+    socket.emit('send_message', {
+        event_id: eventId,
+        indicativo_id: indicativoId,
+        to_indicativo_id: toIndicativoId,
+        content: { type: 'text', text }
+    });
+    document.getElementById('chatInput').value = '';
+});
+// --- MODAL UBICACIÓN MANUAL ---
+const locationModal = document.getElementById('locationModal');
+const closeLocationModal = document.getElementById('closeLocationModal');
+const addressInput = document.getElementById('addressInput');
+const searchAddressBtn = document.getElementById('searchAddressBtn');
+const latInput = document.getElementById('latInput');
+const lngInput = document.getElementById('lngInput');
+const sendManualLocationBtn = document.getElementById('sendManualLocationBtn');
+let manualMap = null, manualMarker;
+let manualMapMarkers = {}; // Para los marcadores de otros indicativos en el modal
+
+function openLocationModal() {
+    locationModal.style.display = 'flex';
+    // Centrar en Barcelona
+    if (!manualMap) {
+        manualMap = L.map('manualMap').setView([41.3874, 2.1686], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(manualMap);
+        manualMap.on('click', function(e) {
+            setManualMarker(e.latlng.lat, e.latlng.lng);
+        });
+    } else {
+        manualMap.setView([41.3874, 2.1686], 13);
+    }
+    // Limpiar marcador manual
+    if (manualMarker) manualMap.removeLayer(manualMarker);
+    latInput.value = '';
+    lngInput.value = '';
+    addressInput.value = '';
+    // Limpiar marcadores de otros indicativos
+    Object.values(manualMapMarkers).forEach(m => manualMap.removeLayer(m));
+    manualMapMarkers = {};
+    // Añadir marcadores de las últimas ubicaciones de cada indicativo
+    Object.values(lastLocations).forEach(msg => {
+        if (msg.content.type === 'location') {
+            const color = msg.indicativo_color || '#3498db';
+            const marker = L.marker([msg.content.lat, msg.content.lng], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style=\"background:${color};width:18px;height:18px;border-radius:50%;border:2px solid #fff;\"></div>`
+                })
+            }).addTo(manualMap);
+            marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
+            manualMapMarkers[msg.indicativo_id] = marker;
+        }
+    });
+}
+function closeLocationModalFn() {
+    locationModal.style.display = 'none';
+}
+function setManualMarker(lat, lng) {
+    if (manualMarker) manualMap.removeLayer(manualMarker);
+    manualMarker = L.marker([lat, lng]).addTo(manualMap);
+    latInput.value = lat;
+    lngInput.value = lng;
+}
+searchAddressBtn.addEventListener('click', function() {
+    const address = addressInput.value.trim();
+    if (!address) return;
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`)
+        .then(r => r.json())
+        .then(results => {
+            if (results && results.length > 0) {
+                const { lat, lon } = results[0];
+                setManualMarker(parseFloat(lat), parseFloat(lon));
+                manualMap.setView([lat, lon], 16);
+            } else {
+                alert('Dirección no encontrada');
+            }
+        });
+});
+latInput.addEventListener('change', function() {
+    const lat = parseFloat(latInput.value);
+    const lng = parseFloat(lngInput.value);
+    if (!isNaN(lat) && !isNaN(lng)) setManualMarker(lat, lng);
+});
+lngInput.addEventListener('change', function() {
+    const lat = parseFloat(latInput.value);
+    const lng = parseFloat(lngInput.value);
+    if (!isNaN(lat) && !isNaN(lng)) setManualMarker(lat, lng);
+});
+closeLocationModal.addEventListener('click', closeLocationModalFn);
+sendManualLocationBtn.addEventListener('click', function() {
+    const lat = parseFloat(latInput.value);
+    const lng = parseFloat(lngInput.value);
+    if (isNaN(lat) || isNaN(lng)) return alert('Introduce una latitud y longitud válidas');
+    if (!indicativoId) return alert('Selecciona un indicativo');
+    socket.emit('send_message', {
+        event_id: eventId,
+        indicativo_id: indicativoId,
+        content: { type: 'location', lat, lng }
+    });
+    closeLocationModalFn();
+});
+document.getElementById('sendLocationBtn').addEventListener('click', function() {
+    if (!indicativoId) return alert('Selecciona un indicativo');
+    // Solo móvil: usar geolocalización
+    if (/Mobi|Android/i.test(navigator.userAgent)) {
+        if (!navigator.geolocation) return alert('Geolocalización no soportada');
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            const { latitude, longitude } = pos.coords;
+            socket.emit('send_message', {
+                event_id: eventId,
+                indicativo_id: indicativoId,
+                content: { type: 'location', lat: latitude, lng: longitude }
+            });
+        }, function() {
+            alert('No se pudo obtener la ubicación');
+        });
+    } else {
+        openLocationModal();
+    }
+});
+document.getElementById('fitMarkersBtn').addEventListener('click', function() {
+    const markerList = Object.values(markerRefs);
+    if (markerList.length === 0) return;
+    if (markerList.length === 1) {
+        map.setView(markerList[0].getLatLng(), 15);
+    } else {
+        const group = L.featureGroup(markerList);
+        map.fitBounds(group.getBounds().pad(0.2));
+    }
+});
+addressInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        searchAddressBtn.click();
+    }
+});
+
+// JS para el modal de asignar servicio
+let assignServiceMap = null, assignServiceMarker;
+let assignServiceMapMarkers = {};
+const assignServiceModal = document.getElementById('assignServiceModal');
+const closeAssignServiceModal = document.getElementById('closeAssignServiceModal');
+const assignToIndicativoSelect = document.getElementById('assignToIndicativoSelect');
+const assignServiceText = document.getElementById('assignServiceText');
+const assignLatInput = document.getElementById('assignLatInput');
+const assignLngInput = document.getElementById('assignLngInput');
+const sendAssignServiceBtn = document.getElementById('sendAssignServiceBtn');
+
+document.getElementById('assignServiceBtn').addEventListener('click', function() {
+    openAssignServiceModal();
+});
+closeAssignServiceModal.addEventListener('click', closeAssignServiceModalFn);
+
+function openAssignServiceModal() {
+    assignServiceModal.style.display = 'flex';
+    assignToIndicativoSelect.value = '';
+    assignServiceText.value = '';
+    assignLatInput.value = '';
+    assignLngInput.value = '';
+    // Mapa
+    if (!assignServiceMap) {
+        assignServiceMap = L.map('assignServiceMap').setView([41.3874, 2.1686], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(assignServiceMap);
+        assignServiceMap.on('click', function(e) {
+            setAssignServiceMarker(e.latlng.lat, e.latlng.lng);
+        });
+    } else {
+        assignServiceMap.setView([41.3874, 2.1686], 13);
+    }
+    // Limpiar marcador manual
+    if (assignServiceMarker) assignServiceMap.removeLayer(assignServiceMarker);
+    // Limpiar marcadores de otros indicativos
+    Object.values(assignServiceMapMarkers).forEach(m => assignServiceMap.removeLayer(m));
+    assignServiceMapMarkers = {};
+    // Añadir marcadores de las últimas ubicaciones de cada indicativo
+    Object.values(lastLocations).forEach(msg => {
+        if (msg.content.type === 'location') {
+            const color = msg.indicativo_color || '#3498db';
+            const marker = L.marker([msg.content.lat, msg.content.lng], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style=\"background:${color};width:18px;height:18px;border-radius:50%;border:2px solid #fff;\"></div>`
+                })
+            }).addTo(assignServiceMap);
+            marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
+            assignServiceMapMarkers[msg.indicativo_id] = marker;
+        }
+    });
+}
+function closeAssignServiceModalFn() {
+    assignServiceModal.style.display = 'none';
+}
+function setAssignServiceMarker(lat, lng) {
+    if (assignServiceMarker) assignServiceMap.removeLayer(assignServiceMarker);
+    assignServiceMarker = L.marker([lat, lng]).addTo(assignServiceMap);
+    assignLatInput.value = lat;
+    assignLngInput.value = lng;
+}
+assignLatInput.addEventListener('change', function() {
+    const lat = parseFloat(assignLatInput.value);
+    const lng = parseFloat(assignLngInput.value);
+    if (!isNaN(lat) && !isNaN(lng)) setAssignServiceMarker(lat, lng);
+});
+assignLngInput.addEventListener('change', function() {
+    const lat = parseFloat(assignLatInput.value);
+    const lng = parseFloat(assignLngInput.value);
+    if (!isNaN(lat) && !isNaN(lng)) setAssignServiceMarker(lat, lng);
+});
+sendAssignServiceBtn.addEventListener('click', function() {
+    const toIndicativoId = assignToIndicativoSelect.value;
+    const text = assignServiceText.value.trim();
+    const lat = parseFloat(assignLatInput.value);
+    const lng = parseFloat(assignLngInput.value);
+    if (!toIndicativoId) return alert('Selecciona un indicativo destinatario');
+    if (!text) return alert('Introduce una descripción del servicio');
+    if (isNaN(lat) || isNaN(lng)) return alert('Selecciona una ubicación en el mapa');
+    if (!indicativoId) return alert('Selecciona tu indicativo');
+    socket.emit('send_message', {
+        event_id: eventId,
+        indicativo_id: indicativoId,
+        to_indicativo_id: toIndicativoId,
+        content: { type: 'assign_service', lat, lng, text }
+    });
+    closeAssignServiceModalFn();
+});
 </script>
 </body>
 </html>
