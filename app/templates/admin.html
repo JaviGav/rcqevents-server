@@ -187,7 +187,153 @@
         </table>
     </div>
     <script>
-        // ... (el JS original del template va aquí, igual que en ADMIN_TEMPLATE) ...
+        let editingEventId = null;
+        document.addEventListener('DOMContentLoaded', function() {
+            loadEvents();
+            document.getElementById('addEventBtn').addEventListener('click', function() {
+                showEventForm();
+            });
+            document.getElementById('eventForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (editingEventId) {
+                    updateEvent();
+                } else {
+                    createEvent();
+                }
+            });
+        });
+
+        function showEventForm(event = null) {
+            const formContainer = document.getElementById('eventFormContainer');
+            const formTitle = document.getElementById('formTitle');
+            const submitBtn = document.getElementById('submitBtn');
+            const nombreInput = document.getElementById('nombre');
+            const fechaInput = document.getElementById('fecha');
+            if (event) {
+                editingEventId = event.id;
+                formTitle.textContent = 'Editar Evento';
+                submitBtn.textContent = 'Actualizar Evento';
+                nombreInput.value = event.nombre;
+                const fecha = new Date(event.fecha);
+                fechaInput.value = fecha.toISOString().slice(0, 16);
+            } else {
+                editingEventId = null;
+                formTitle.textContent = 'Agregar Nuevo Evento';
+                submitBtn.textContent = 'Crear Evento';
+                nombreInput.value = '';
+                fechaInput.value = '';
+            }
+            formContainer.style.display = 'block';
+        }
+
+        function cancelEdit() {
+            document.getElementById('eventFormContainer').style.display = 'none';
+            editingEventId = null;
+        }
+
+        function loadEvents() {
+            fetch('/events/api').then(response => response.json()).then(data => {
+                if (data.status === 'success') {
+                    displayEvents(data.events);
+                }
+            }).catch(error => {
+                showAlert('Error al cargar los eventos: ' + error.message, 'error');
+            });
+        }
+
+        function displayEvents(events) {
+            const tbody = document.getElementById('eventsTableBody');
+            tbody.innerHTML = '';
+            events.forEach(event => {
+                const tr = document.createElement('tr');
+                const fecha = new Date(event.fecha);
+                tr.innerHTML = `<td>${event.id}</td><td>${event.nombre}</td><td>${fecha.toLocaleString()}</td><td><span class="status-badge status-${event.activo ? 'active' : 'inactive'}" onclick="toggleEventStatus(${event.id})">${event.activo ? 'Activo' : 'Inactivo'}</span></td><td><button class="edit" onclick="editEvent(${JSON.stringify(event).replace(/"/g, '&quot;')})">Editar</button><button class="delete" onclick="deleteEvent(${event.id})">Eliminar</button><a href="/events/${event.id}" class="control">Gestionar</a><a href="/events/${event.id}/control" class="control">Control</a></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function createEvent() {
+            const formData = {nombre: document.getElementById('nombre').value, fecha: document.getElementById('fecha').value};
+            fetch('/events/api', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json',},
+                body: JSON.stringify(formData)
+            }).then(response => response.json()).then(data => {
+                if (data.status === 'success') {
+                    showAlert('Evento creado exitosamente', 'success');
+                    cancelEdit();
+                    loadEvents();
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            }).catch(error => {
+                showAlert('Error al crear el evento: ' + error.message, 'error');
+            });
+        }
+
+        function updateEvent() {
+            const formData = {nombre: document.getElementById('nombre').value, fecha: document.getElementById('fecha').value};
+            fetch(`/events/api/${editingEventId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json',},
+                body: JSON.stringify(formData)
+            }).then(response => response.json()).then(data => {
+                if (data.status === 'success') {
+                    showAlert('Evento actualizado exitosamente', 'success');
+                    cancelEdit();
+                    loadEvents();
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            }).catch(error => {
+                showAlert('Error al actualizar el evento: ' + error.message, 'error');
+            });
+        }
+
+        function editEvent(event) {
+            showEventForm(event);
+        }
+
+        function deleteEvent(eventId) {
+            if (!confirm('¿Estás seguro de que deseas eliminar este evento?')) {
+                return;
+            }
+            fetch(`/events/api/${eventId}`, {method: 'DELETE'}).then(response => response.json()).then(data => {
+                if (data.status === 'success') {
+                    showAlert('Evento eliminado exitosamente', 'success');
+                    loadEvents();
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            }).catch(error => {
+                showAlert('Error al eliminar el evento: ' + error.message, 'error');
+            });
+        }
+
+        function toggleEventStatus(eventId) {
+            fetch(`/events/api/${eventId}/toggle`, {method: 'POST'}).then(response => response.json()).then(data => {
+                if (data.status === 'success') {
+                    showAlert(data.message, 'success');
+                    loadEvents();
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            }).catch(error => {
+                showAlert('Error al cambiar el estado del evento: ' + error.message, 'error');
+            });
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
     </script>
 </body>
 </html> 

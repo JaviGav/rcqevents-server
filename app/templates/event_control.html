@@ -19,13 +19,37 @@
         .message .content { font-size: 15px; }
         .message.location { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 5px 10px; border-radius: 4px; }
         .indicativo-select { margin-bottom: 10px; }
+        .incident-form { margin-top: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .form-group textarea { height: 100px; }
+        button { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #2980b9; }
+        .incident-list { margin-top: 20px; }
+        .incident-item { background: #fff; padding: 15px; border-radius: 4px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .incident-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .incident-number { font-weight: bold; color: #2c3e50; }
+        .incident-status { padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .status-active { background: #27ae60; color: white; }
+        .status-closed { background: #e74c3c; color: white; }
+        .incident-details { color: #666; font-size: 14px; }
+        .assignment-list { margin-top: 10px; }
+        .assignment-item { background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 5px; }
+        .assignment-status { display: inline-block; padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-left: 5px; }
+        .status-pre-avisado { background: #f1c40f; color: #000; }
+        .status-avisado { background: #e67e22; color: white; }
+        .status-en-camino { background: #3498db; color: white; }
+        .status-en-lugar { background: #27ae60; color: white; }
+        .status-desasignado { background: #95a5a6; color: white; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>Control de Evento: {{ event.nombre }}</h1>
-            <a href="/events/" style="color:white;">← Volver a Eventos</a>
+            <p>ID: {{ event.id }} | Fecha: {{ event.fecha }}</p>
+            <a href="/events/{{ event.id }}" style="color: white;">← Volver a Detalles</a>
         </div>
         <!-- ... resto del HTML y JS igual que en EVENT_CONTROL_TEMPLATE ... -->
     </div>
