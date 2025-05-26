@@ -168,7 +168,7 @@
                         <option value="GUB">
                         <option value="Servicios Médicos">
                         {% for ind in indicativos %}
-                            <option value="{{ ind.indicativo }} ({{ ind.nombre or '' }})">
+                            <option value="{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}">
                         {% endfor %}
                     </datalist>
                 </div>
@@ -307,11 +307,7 @@ function updateLocationMarkers(autoFit = false) {
 }
 
 // --- Lista de indicativos para lookup rápido por id ---
-const indicativosList = [
-    {% for ind in indicativos %}
-        {id: '{{ ind.id }}', indicativo: '{{ ind.indicativo }}', nombre: '{{ ind.nombre or '' }}'},
-    {% endfor %}
-];
+const indicativosList = {{ indicativos | map(attribute='to_dict') | list | tojson }};
 
 function appendMessage(msg) {
     const div = document.createElement('div');
