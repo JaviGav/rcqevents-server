@@ -218,16 +218,7 @@ def incident_to_dict(incident):
     }
 
 def assignment_to_dict(a):
-    return {
-        'id': a.id,
-        'asignado_a': a.asignado_a,
-        'estado': a.estado,
-        'hora_preavisado': a.hora_preavisado.strftime('%Y-%m-%d %H:%M:%S') if a.hora_preavisado else None,
-        'hora_avisado': a.hora_avisado.strftime('%Y-%m-%d %H:%M:%S') if a.hora_avisado else None,
-        'hora_en_camino': a.hora_en_camino.strftime('%Y-%m-%d %H:%M:%S') if a.hora_en_camino else None,
-        'hora_en_lugar': a.hora_en_lugar.strftime('%Y-%m-%d %H:%M:%S') if a.hora_en_lugar else None,
-        'hora_desasignado': a.hora_desasignado.strftime('%Y-%m-%d %H:%M:%S') if a.hora_desasignado else None,
-    }
+    return a.to_dict()
 
 @bp.route('/<int:event_id>/incidents', methods=['GET'])
 def get_incidents(event_id):
@@ -297,47 +288,58 @@ def delete_incident(event_id, incident_id):
     db.session.commit()
     return jsonify({'status': 'success'})
 
-# --- ASIGNACIONES ---
+# --- ASIGNACIONES DE INCIDENTES ---
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments', methods=['POST'])
-def add_assignment(event_id, incident_id):
-    incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
+def create_incident_assignment(event_id, incident_id):
+    incident = Incident.query.filter_by(id=incident_id, event_id=event_id).first_or_404()
     data = request.get_json()
+    if not data or 'indicativo_id' not in data:
+        return jsonify({'status': 'error', 'message': 'indicativo_id es requerido'}), 400
+
+    now = datetime.utcnow()
+    nuevo_estado_asignacion = data.get('estado_asignacion', 'pre-avisado')
+
     assignment = IncidentAssignment(
         incident_id=incident.id,
-        asignado_a=data['asignado_a'],
-        estado=data.get('estado', 'pre-avisado')
+        indicativo_id=data['indicativo_id'],
+        estado_asignacion=nuevo_estado_asignacion,
+        fecha_creacion_asignacion=now
     )
+
+    if nuevo_estado_asignacion == 'pre-avisado': assignment.fecha_pre_avisado_asig = now
+    elif nuevo_estado_asignacion == 'avisado': assignment.fecha_avisado_asig = now
+    elif nuevo_estado_asignacion == 'en camino': assignment.fecha_en_camino_asig = now
+    elif nuevo_estado_asignacion == 'en el lugar': assignment.fecha_en_lugar_asig = now
+    elif nuevo_estado_asignacion == 'finalizado': assignment.fecha_finalizado_asig = now
+    
     db.session.add(assignment)
     db.session.commit()
-    return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
+    return jsonify({'status': 'success', 'message': 'Asignación creada', 'assignment': assignment.to_dict()}), 201
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments/<int:assignment_id>', methods=['PUT'])
-def update_assignment(event_id, incident_id, assignment_id):
-    incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
-    assignment = IncidentAssignment.query.filter_by(id=assignment_id, incident_id=incident.id).first_or_404()
+def update_incident_assignment(event_id, incident_id, assignment_id):
+    assignment = IncidentAssignment.query.filter_by(id=assignment_id, incident_id=incident_id).first_or_404()
     data = request.get_json()
-    estado = data.get('estado')
     now = datetime.utcnow()
-    if estado and estado != assignment.estado:
-        assignment.estado = estado
-        if estado == 'pre-avisado':
-            assignment.hora_preavisado = now
-        elif estado == 'avisado y en camino':
-            assignment.hora_avisado = now
-            assignment.hora_en_camino = now
-        elif estado == 'en el lugar':
-            assignment.hora_en_lugar = now
-        elif estado == 'desasignado':
-            assignment.hora_desasignado = now
+
+    if 'estado_asignacion' in data and data['estado_asignacion'] != assignment.estado_asignacion:
+        nuevo_estado = data['estado_asignacion']
+        assignment.estado_asignacion = nuevo_estado
+        if nuevo_estado == 'pre-avisado': assignment.fecha_pre_avisado_asig = now
+        elif nuevo_estado == 'avisado': assignment.fecha_avisado_asig = now
+        elif nuevo_estado == 'en camino': assignment.fecha_en_camino_asig = now
+        elif nuevo_estado == 'en el lugar': assignment.fecha_en_lugar_asig = now
+        elif nuevo_estado == 'finalizado': assignment.fecha_finalizado_asig = now
+        # Considerar limpiar otras fechas si es necesario
+
     db.session.commit()
-    return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
+    return jsonify({'status': 'success', 'message': 'Asignación actualizada', 'assignment': assignment.to_dict()})
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments/<int:assignment_id>', methods=['DELETE'])
-def delete_assignment(event_id, incident_id, assignment_id):
-    incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
-    assignment = IncidentAssignment.query.filter_by(id=assignment_id, incident_id=incident.id).first_or_404()
+def delete_incident_assignment(event_id, incident_id, assignment_id):
+    assignment = IncidentAssignment.query.filter_by(id=assignment_id, incident_id=incident_id).first_or_404()
     db.session.delete(assignment)
     db.session.commit()
-    return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
+    return jsonify({'status': 'success', 'message': 'Asignación eliminada'})
 
 # Fin del archivo
