@@ -224,9 +224,14 @@ def assignment_to_dict(a):
 
 @bp.route('/<int:event_id>/incidents', methods=['GET'])
 def get_incidents(event_id):
-    # Por defecto, solo obtener incidentes no eliminados
-    # Se podría añadir un parámetro como request.args.get('include_deleted') para modificar esto
-    incidents = Incident.query.filter_by(event_id=event_id, is_deleted=False).order_by(Incident.incident_number.asc()).all()
+    include_deleted_str = request.args.get('include_deleted', 'false').lower()
+    include_deleted = include_deleted_str == 'true'
+
+    query = Incident.query.filter_by(event_id=event_id)
+    if not include_deleted:
+        query = query.filter_by(is_deleted=False)
+    
+    incidents = query.order_by(Incident.incident_number.asc()).all()
     return jsonify({'status': 'success', 'incidents': [incident_to_dict(i) for i in incidents]})
 
 @bp.route('/<int:event_id>/incidents', methods=['POST'])

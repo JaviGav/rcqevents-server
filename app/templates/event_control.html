@@ -34,6 +34,11 @@
             display: inline-block; /* Para que esté en la misma línea */
             /* Podrías añadir font-size, color, etc. */
         }
+        .deleted-incident td {
+            text-decoration: line-through;
+            color: #95a5a6;
+            background-color: #f8f9fa; /* Un fondo ligeramente diferente */
+        }
     </style>
 </head>
 <body>
@@ -127,9 +132,15 @@
     </div>
     <!-- Gestión de incidentes -->
     <div class="incidents-container" style="background:#fff; padding:20px; border-radius:8px; margin-top:30px; box-shadow:0 2px 4px rgba(0,0,0,0.08);">
-        <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
             <h2>Incidentes</h2>
-            <button id="addIncidentBtn" style="background:#e67e22; color:#fff; padding:8px 18px; border:none; border-radius:4px; font-size:15px; cursor:pointer;">+ Nuevo incidente</button>
+            <div>
+                <label for="showDeletedIncidents" style="margin-right: 10px; font-weight:normal;">
+                    <input type="checkbox" id="showDeletedIncidents" style="margin-right:5px;">
+                    Mostrar eliminados
+                </label>
+                <button id="addIncidentBtn" style="background:#e67e22; color:#fff; padding:8px 18px; border:none; border-radius:4px; font-size:15px; cursor:pointer;">+ Nuevo incidente</button>
+            </div>
         </div>
         <table id="incidentsTable" style="width:100%; margin-top:15px; border-collapse:collapse;">
             <thead>
@@ -722,6 +733,10 @@ function renderIncidents(incidents) {
 
     incidents.forEach(incident => {
         const row = tableBody.insertRow();
+        if (incident.is_deleted) {
+            row.classList.add('deleted-incident');
+        }
+
         row.insertCell().textContent = incident.incident_number;
         row.insertCell().textContent = incident.tipo;
         row.insertCell().textContent = incident.estado;
@@ -739,14 +754,23 @@ function renderIncidents(incidents) {
         assignmentsCell.textContent = incident.assignments && incident.assignments.length > 0 ? incident.assignments.map(a => a.indicativo_nombre).join(', ') : 'Ninguno';
 
         const actionsCell = row.insertCell();
-        // TODO: Añadir botones de acción (Editar, Eliminar, Gestionar Asignaciones)
-        actionsCell.innerHTML = `<button class="edit-incident-btn" data-id="${incident.id}">✏️</button> <button class="delete-incident-btn" data-id="${incident.id}">🗑️</button>`;
+        if (incident.is_deleted) {
+            actionsCell.innerHTML = `<button class="restore-incident-btn" data-id="${incident.id}" title="Restaurar incidente">♻️</button>`;
+        } else {
+            actionsCell.innerHTML = `<button class="edit-incident-btn" data-id="${incident.id}" title="Editar incidente">✏️</button> <button class="delete-incident-btn" data-id="${incident.id}" title="Eliminar incidente">🗑️</button>`;
+        }
     });
 }
 
 async function loadIncidents() {
+    const showDeleted = document.getElementById('showDeletedIncidents').checked;
+    let apiUrl = `/events/${eventId}/incidents`;
+    if (showDeleted) {
+        apiUrl += '?include_deleted=true';
+    }
+
     try {
-        const response = await fetch(`/events/${eventId}/incidents`);
+        const response = await fetch(apiUrl);
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
@@ -770,6 +794,9 @@ async function loadIncidents() {
         }
     }
 }
+
+// Event listener para el checkbox "Mostrar eliminados"
+document.getElementById('showDeletedIncidents').addEventListener('change', loadIncidents);
 
 incidentForm.addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -840,6 +867,26 @@ document.getElementById('incidentsTableBody').addEventListener('click', async fu
         }
     }
     // Aquí se pueden añadir más 'else if' para otros botones como editar o restaurar
+    else if (e.target.classList.contains('restore-incident-btn')) {
+        const incidentId = e.target.dataset.id;
+        if (confirm(`¿Estás seguro de que quieres restaurar el incidente ID ${incidentId}?`)) {
+            try {
+                const response = await fetch(`/events/${eventId}/incidents/${incidentId}/restore`, {
+                    method: 'POST',
+                });
+                const result = await response.json();
+                if (response.ok && result.status === 'success') {
+                    alert('Incidente restaurado exitosamente.');
+                    loadIncidents(); // Recargar la lista
+                } else {
+                    alert(`Error al restaurar incidente: ${result.message || 'Error desconocido'}`);
+                }
+            } catch (error) {
+                console.error('Error de red al restaurar incidente:', error);
+                alert('Error de red al intentar restaurar el incidente.');
+            }
+        }
+    }
 });
 
 // TODO: Lógica para cargar incidentes, enviar formulario (crear/editar), etc.
