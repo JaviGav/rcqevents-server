@@ -142,10 +142,15 @@
                     <label for="incidentTipo">Tipo de incidente:</label>
                     <input type="text" id="incidentTipo" name="tipo" list="tipoSugerencias" required style="width:90%;">
                     <datalist id="tipoSugerencias">
-                        <option value="asistencia médica">
-                        <option value="incidencia circuito">
-                        <option value="apoyo al compañero">
-                        <option value="afluencia excesiva de público">
+                        <option value="🚑 Asistencia Médica">
+                        <option value="🚧 Incidencia Circuito">
+                        <option value="👥 Apoyo al Compañero">
+                        <option value=" भीड़ Afluencia Excesiva">
+                        <option value="🔥 Incendio">
+                        <option value="💧 Fuga de Agua/Inundación">
+                        <option value="🛠️ Avería Técnica">
+                        <option value="🗣️ Altercado/Discusión">
+                        <option value="❓ Otro (General)">
                     </datalist>
                 </div>
                 <div class="form-group" id="dorsalGroup" style="display:none;">
@@ -620,6 +625,185 @@ sendAssignServiceBtn.addEventListener('click', function() {
     });
     closeAssignServiceModalFn();
 });
+
+// JS para el modal de incidentes
+const incidentModal = document.getElementById('incidentModal');
+const closeIncidentModal = document.getElementById('closeIncidentModal');
+const addIncidentBtn = document.getElementById('addIncidentBtn');
+const incidentForm = document.getElementById('incidentForm');
+const incidentModalTitle = document.getElementById('incidentModalTitle');
+const incidentTipoInput = document.getElementById('incidentTipo');
+const dorsalGroup = document.getElementById('dorsalGroup');
+const patologiaGroup = document.getElementById('patologiaGroup');
+
+// Mapa para el modal de incidentes
+let incidentMap = null, incidentMarker = null;
+
+addIncidentBtn.addEventListener('click', function() {
+    incidentModalTitle.textContent = 'Nuevo Incidente';
+    incidentForm.reset(); // Limpia el formulario
+    // Asegúrate de que los campos opcionales estén ocultos al abrir para nuevo incidente
+    dorsalGroup.style.display = 'none';
+    patologiaGroup.style.display = 'none';
+    incidentModal.style.display = 'flex';
+    
+    // Inicializar o re-centrar mapa del modal de incidentes
+    if (!incidentMap) {
+        incidentMap = L.map('incidentMap').setView([41.3874, 2.1686], 13); // Coordenadas de ejemplo
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(incidentMap);
+        incidentMap.on('click', function(e) {
+            setIncidentMarker(e.latlng.lat, e.latlng.lng);
+        });
+    } else {
+        incidentMap.setView([41.3874, 2.1686], 13); // Re-centrar
+        if (incidentMarker) {
+            incidentMap.removeLayer(incidentMarker);
+            incidentMarker = null;
+        }
+    }
+    // Invalidar el tamaño del mapa para asegurar que se renderiza correctamente dentro del modal
+    setTimeout(() => {
+        if (incidentMap) incidentMap.invalidateSize();
+    }, 10);
+});
+
+closeIncidentModal.addEventListener('click', function() {
+    incidentModal.style.display = 'none';
+});
+
+incidentTipoInput.addEventListener('change', function() {
+    if (this.value === '🚑 Asistencia Médica') {
+        dorsalGroup.style.display = 'block';
+        patologiaGroup.style.display = 'block';
+    } else {
+        dorsalGroup.style.display = 'none';
+        patologiaGroup.style.display = 'none';
+    }
+});
+
+function setIncidentMarker(lat, lng) {
+    if (incidentMarker) incidentMap.removeLayer(incidentMarker);
+    incidentMarker = L.marker([lat, lng]).addTo(incidentMap);
+    document.getElementById('incidentLat').value = lat;
+    document.getElementById('incidentLng').value = lng;
+}
+
+function renderIncidents(incidents) {
+    const tableBody = document.getElementById('incidentsTableBody');
+    tableBody.innerHTML = ''; // Limpiar tabla
+
+    if (!incidents || incidents.length === 0) {
+        const row = tableBody.insertRow();
+        const cell = row.insertCell();
+        cell.colSpan = 8; // Número de columnas de la tabla
+        cell.textContent = 'No hay incidentes registrados para este evento.';
+        cell.style.textAlign = 'center';
+        return;
+    }
+
+    incidents.forEach(incident => {
+        const row = tableBody.insertRow();
+        row.insertCell().textContent = incident.incident_number;
+        row.insertCell().textContent = incident.tipo;
+        row.insertCell().textContent = incident.estado;
+        row.insertCell().textContent = incident.descripcion ? incident.descripcion.substring(0, 50) + (incident.descripcion.length > 50 ? '...' : '') : '-';
+        row.insertCell().textContent = incident.reportado_por || '-';
+        
+        const locCell = row.insertCell();
+        if (incident.lat && incident.lng) {
+            locCell.innerHTML = `<a href="https://maps.google.com/?q=${incident.lat},${incident.lng}" target="_blank" title="Ver en mapa">${parseFloat(incident.lat).toFixed(4)}, ${parseFloat(incident.lng).toFixed(4)}</a>`;
+        } else {
+            locCell.textContent = '-';
+        }
+
+        const assignmentsCell = row.insertCell();
+        assignmentsCell.textContent = incident.assignments && incident.assignments.length > 0 ? incident.assignments.map(a => a.indicativo_nombre).join(', ') : 'Ninguno';
+
+        const actionsCell = row.insertCell();
+        // TODO: Añadir botones de acción (Editar, Eliminar, Gestionar Asignaciones)
+        actionsCell.innerHTML = `<button class="edit-incident-btn" data-id="${incident.id}">✏️</button> <button class="delete-incident-btn" data-id="${incident.id}">🗑️</button>`;
+    });
+}
+
+async function loadIncidents() {
+    try {
+        const response = await fetch(`/events/${eventId}/incidents`);
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        const result = await response.json();
+        if (result.status === 'success') {
+            renderIncidents(result.incidents);
+        } else {
+            console.error('Error al cargar incidentes:', result.message);
+            renderIncidents([]); // Mostrar tabla vacía o con mensaje de error
+        }
+    } catch (error) {
+        console.error('Error de red al cargar incidentes:', error);
+        renderIncidents([]); // Mostrar tabla vacía o con mensaje de error
+        const tableBody = document.getElementById('incidentsTableBody');
+        if (tableBody.innerHTML === '') { // Si renderIncidents([]) no puso nada por error previo
+            const row = tableBody.insertRow();
+            const cell = row.insertCell();
+            cell.colSpan = 8;
+            cell.textContent = 'Error al cargar incidentes.';
+            cell.style.textAlign = 'center';
+        }
+    }
+}
+
+incidentForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = {
+        tipo: document.getElementById('incidentTipo').value,
+        descripcion: document.getElementById('incidentDescripcion').value,
+        reportado_por: document.getElementById('incidentReportadoPor').value,
+        lat: parseFloat(document.getElementById('incidentLat').value),
+        lng: parseFloat(document.getElementById('incidentLng').value),
+        estado: document.getElementById('incidentEstado').value,
+        dorsal: document.getElementById('incidentDorsal').value || null,
+        patologia: document.getElementById('incidentPatologia').value || null,
+    };
+
+    if (isNaN(formData.lat) || isNaN(formData.lng)) {
+        formData.lat = null;
+        formData.lng = null;
+    }
+
+    if (!formData.dorsal) delete formData.dorsal;
+    if (!formData.patologia) delete formData.patologia;
+
+    try {
+        const response = await fetch(`/events/${eventId}/incidents`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData),
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.status === 'success') {
+            alert('Incidente creado exitosamente!');
+            incidentModal.style.display = 'none';
+            loadIncidents(); // Recargar la lista de incidentes
+        } else {
+            alert(`Error al crear incidente: ${result.message || 'Error desconocido'}`);
+        }
+    } catch (error) {
+        console.error('Error en la petición de crear incidente:', error);
+        alert('Error de red al intentar crear el incidente.');
+    }
+});
+
+// TODO: Lógica para cargar incidentes, enviar formulario (crear/editar), etc.
+// Cargar incidentes al iniciar
+document.addEventListener('DOMContentLoaded', loadIncidents);
+
 </script>
 </body>
 </html>
