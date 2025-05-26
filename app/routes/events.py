@@ -1108,6 +1108,89 @@ EVENT_CONTROL_TEMPLATE = '''
             <button type="button" id="sendAssignServiceBtn" style="background:#27ae60; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Asignar servicio</button>
         </div>
     </div>
+    <!-- Gestión de incidentes -->
+    <div class="incidents-container" style="background:#fff; padding:20px; border-radius:8px; margin-top:30px; box-shadow:0 2px 4px rgba(0,0,0,0.08);">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+            <h2>Incidentes</h2>
+            <button id="addIncidentBtn" style="background:#e67e22; color:#fff; padding:8px 18px; border:none; border-radius:4px; font-size:15px; cursor:pointer;">+ Nuevo incidente</button>
+        </div>
+        <table id="incidentsTable" style="width:100%; margin-top:15px; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f8f9fa;">
+                    <th>ID</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Descripción</th>
+                    <th>Reportado por</th>
+                    <th>Localización</th>
+                    <th>Asignados</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="incidentsTableBody"></tbody>
+        </table>
+    </div>
+    <!-- Modal de incidente -->
+    <div id="incidentModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:8px; max-width:540px; width:95vw; margin:40px auto; padding:20px; position:relative;">
+            <button id="closeIncidentModal" style="position:absolute; top:10px; right:10px; background:#e74c3c; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:18px; cursor:pointer;">&times;</button>
+            <h2 id="incidentModalTitle">Nuevo incidente</h2>
+            <form id="incidentForm">
+                <div class="form-group">
+                    <label for="incidentTipo">Tipo de incidente:</label>
+                    <input type="text" id="incidentTipo" name="tipo" list="tipoSugerencias" required style="width:90%;">
+                    <datalist id="tipoSugerencias">
+                        <option value="asistencia médica">
+                        <option value="incidencia circuito">
+                        <option value="apoyo al compañero">
+                        <option value="afluencia excesiva de público">
+                    </datalist>
+                </div>
+                <div class="form-group" id="dorsalGroup" style="display:none;">
+                    <label for="incidentDorsal">Dorsal:</label>
+                    <input type="text" id="incidentDorsal" name="dorsal" style="width:90%;">
+                </div>
+                <div class="form-group" id="patologiaGroup" style="display:none;">
+                    <label for="incidentPatologia">Patología:</label>
+                    <input type="text" id="incidentPatologia" name="patologia" style="width:90%;">
+                </div>
+                <div class="form-group">
+                    <label for="incidentDescripcion">Descripción:</label>
+                    <input type="text" id="incidentDescripcion" name="descripcion" style="width:90%;">
+                </div>
+                <div class="form-group">
+                    <label for="incidentReportadoPor">Reportado por:</label>
+                    <input type="text" id="incidentReportadoPor" name="reportado_por" list="reportadoSugerencias" style="width:90%;">
+                    <datalist id="reportadoSugerencias">
+                        <option value="CME">
+                        <option value="GUB">
+                        <option value="Servicios Médicos">
+                        {% for ind in indicativos %}
+                            <option value="{{ ind.indicativo }} ({{ ind.nombre or '' }})">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label>Localización:</label>
+                    <div id="incidentMap" style="height:200px; width:100%; border-radius:8px; margin-bottom:8px;"></div>
+                    <label for="incidentLat">Latitud:</label>
+                    <input type="number" id="incidentLat" name="lat" step="any" style="width:40%;">
+                    <label for="incidentLng">Longitud:</label>
+                    <input type="number" id="incidentLng" name="lng" step="any" style="width:40%;">
+                </div>
+                <div class="form-group">
+                    <label for="incidentEstado">Estado:</label>
+                    <select id="incidentEstado" name="estado" style="width:90%;">
+                        <option value="pre-incidente">Pre-incidente</option>
+                        <option value="activo" selected>Activo</option>
+                        <option value="stand-by">Stand-by</option>
+                        <option value="solucionado">Solucionado</option>
+                    </select>
+                </div>
+                <button type="submit" style="background:#27ae60; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Guardar</button>
+            </form>
+        </div>
+    </div>
 </div>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -1542,4 +1625,89 @@ sendAssignServiceBtn.addEventListener('click', function() {
 </script>
 </body>
 </html>
-''' 
+'''
+
+<!-- Gestión de incidentes -->
+<div class="incidents-container" style="background:#fff; padding:20px; border-radius:8px; margin-top:30px; box-shadow:0 2px 4px rgba(0,0,0,0.08);">
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h2>Incidentes</h2>
+        <button id="addIncidentBtn" style="background:#e67e22; color:#fff; padding:8px 18px; border:none; border-radius:4px; font-size:15px; cursor:pointer;">+ Nuevo incidente</button>
+    </div>
+    <table id="incidentsTable" style="width:100%; margin-top:15px; border-collapse:collapse;">
+        <thead>
+            <tr style="background:#f8f9fa;">
+                <th>ID</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Descripción</th>
+                <th>Reportado por</th>
+                <th>Localización</th>
+                <th>Asignados</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="incidentsTableBody"></tbody>
+    </table>
+</div>
+<!-- Modal de incidente -->
+<div id="incidentModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:8px; max-width:540px; width:95vw; margin:40px auto; padding:20px; position:relative;">
+        <button id="closeIncidentModal" style="position:absolute; top:10px; right:10px; background:#e74c3c; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:18px; cursor:pointer;">&times;</button>
+        <h2 id="incidentModalTitle">Nuevo incidente</h2>
+        <form id="incidentForm">
+            <div class="form-group">
+                <label for="incidentTipo">Tipo de incidente:</label>
+                <input type="text" id="incidentTipo" name="tipo" list="tipoSugerencias" required style="width:90%;">
+                <datalist id="tipoSugerencias">
+                    <option value="asistencia médica">
+                    <option value="incidencia circuito">
+                    <option value="apoyo al compañero">
+                    <option value="afluencia excesiva de público">
+                </datalist>
+            </div>
+            <div class="form-group" id="dorsalGroup" style="display:none;">
+                <label for="incidentDorsal">Dorsal:</label>
+                <input type="text" id="incidentDorsal" name="dorsal" style="width:90%;">
+            </div>
+            <div class="form-group" id="patologiaGroup" style="display:none;">
+                <label for="incidentPatologia">Patología:</label>
+                <input type="text" id="incidentPatologia" name="patologia" style="width:90%;">
+            </div>
+            <div class="form-group">
+                <label for="incidentDescripcion">Descripción:</label>
+                <input type="text" id="incidentDescripcion" name="descripcion" style="width:90%;">
+            </div>
+            <div class="form-group">
+                <label for="incidentReportadoPor">Reportado por:</label>
+                <input type="text" id="incidentReportadoPor" name="reportado_por" list="reportadoSugerencias" style="width:90%;">
+                <datalist id="reportadoSugerencias">
+                    <option value="CME">
+                    <option value="GUB">
+                    <option value="Servicios Médicos">
+                    {% for ind in indicativos %}
+                        <option value="{{ ind.indicativo }} ({{ ind.nombre or '' }})">
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="form-group">
+                <label>Localización:</label>
+                <div id="incidentMap" style="height:200px; width:100%; border-radius:8px; margin-bottom:8px;"></div>
+                <label for="incidentLat">Latitud:</label>
+                <input type="number" id="incidentLat" name="lat" step="any" style="width:40%;">
+                <label for="incidentLng">Longitud:</label>
+                <input type="number" id="incidentLng" name="lng" step="any" style="width:40%;">
+            </div>
+            <div class="form-group">
+                <label for="incidentEstado">Estado:</label>
+                <select id="incidentEstado" name="estado" style="width:90%;">
+                    <option value="pre-incidente">Pre-incidente</option>
+                    <option value="activo" selected>Activo</option>
+                    <option value="stand-by">Stand-by</option>
+                    <option value="solucionado">Solucionado</option>
+                </select>
+            </div>
+            <button type="submit" style="background:#27ae60; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Guardar</button>
+        </form>
+    </div>
+</div>
+``` 
