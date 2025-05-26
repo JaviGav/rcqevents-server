@@ -20,6 +20,10 @@ class Incident(db.Model):
     fecha_stand_by = db.Column(db.DateTime, nullable=True)
     fecha_finalizado = db.Column(db.DateTime, nullable=True)
 
+    # Campos para borrado lógico
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+
     __table_args__ = (
         db.UniqueConstraint('event_id', 'incident_number', name='uq_event_incident_number'),
     )

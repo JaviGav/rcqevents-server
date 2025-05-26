@@ -214,6 +214,8 @@ def incident_to_dict(incident):
         'fecha_activado': incident.fecha_activado.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_activado else None,
         'fecha_stand_by': incident.fecha_stand_by.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_stand_by else None,
         'fecha_finalizado': incident.fecha_finalizado.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_finalizado else None,
+        'is_deleted': incident.is_deleted,
+        'deleted_at': incident.deleted_at.strftime('%Y-%m-%d %H:%M:%S') if incident.deleted_at else None,
         'assignments': [assignment_to_dict(a) for a in incident.assignments]
     }
 
@@ -222,7 +224,9 @@ def assignment_to_dict(a):
 
 @bp.route('/<int:event_id>/incidents', methods=['GET'])
 def get_incidents(event_id):
-    incidents = Incident.query.filter_by(event_id=event_id).order_by(Incident.incident_number.asc()).all()
+    # Por defecto, solo obtener incidentes no eliminados
+    # Se podría añadir un parámetro como request.args.get('include_deleted') para modificar esto
+    incidents = Incident.query.filter_by(event_id=event_id, is_deleted=False).order_by(Incident.incident_number.asc()).all()
     return jsonify({'status': 'success', 'incidents': [incident_to_dict(i) for i in incidents]})
 
 @bp.route('/<int:event_id>/incidents', methods=['POST'])
@@ -283,10 +287,22 @@ def update_incident(event_id, incident_id):
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>', methods=['DELETE'])
 def delete_incident(event_id, incident_id):
-    incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
-    db.session.delete(incident)
+    incident = Incident.query.filter_by(event_id=event_id, id=incident_id, is_deleted=False).first_or_404()
+    # Se marca como eliminado en lugar de borrarlo físicamente
+    incident.is_deleted = True
+    incident.deleted_at = datetime.utcnow()
     db.session.commit()
-    return jsonify({'status': 'success'})
+    return jsonify({'status': 'success', 'message': 'Incidente marcado como eliminado'})
+
+@bp.route('/<int:event_id>/incidents/<int:incident_id>/restore', methods=['POST'])
+def restore_incident(event_id, incident_id):
+    incident = Incident.query.filter_by(event_id=event_id, id=incident_id, is_deleted=True).first_or_404(
+        description='Incidente no encontrado o no está eliminado.'
+    )
+    incident.is_deleted = False
+    incident.deleted_at = None
+    db.session.commit()
+    return jsonify({'status': 'success', 'message': 'Incidente restaurado', 'incident': incident_to_dict(incident)})
 
 # --- ASIGNACIONES DE INCIDENTES ---
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments', methods=['POST'])
