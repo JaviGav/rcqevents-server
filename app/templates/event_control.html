@@ -207,6 +207,10 @@
                 </div>
                 <div class="form-group">
                     <label>Localización:</label>
+                    <div style="margin-bottom:10px;">
+                        <input type="text" id="incidentAddressSearchInput" placeholder="Buscar dirección..." style="width:70%; margin-right:5px;">
+                        <button type="button" id="incidentSearchAddressBtn" style="padding:8px 10px;">Buscar</button>
+                    </div>
                     <div id="incidentMap" style="height:200px; width:100%; border-radius:8px; margin-bottom:8px;"></div>
                     <div id="incidentAddressDisplay" style="font-size:0.9em; color:#555; margin-bottom:5px; min-height:1.2em;"></div>
                     <label for="incidentLat">Latitud:</label>
@@ -664,6 +668,8 @@ const incidentModalTitle = document.getElementById('incidentModalTitle');
 const incidentTipoInput = document.getElementById('incidentTipo');
 const dorsalGroup = document.getElementById('dorsalGroup');
 const patologiaGroup = document.getElementById('patologiaGroup');
+const incidentAddressSearchInput = document.getElementById('incidentAddressSearchInput');
+const incidentSearchAddressBtn = document.getElementById('incidentSearchAddressBtn');
 
 // Campo oculto o variable para guardar el ID del incidente que se está editando
 let editingIncidentId = null;
@@ -983,6 +989,47 @@ document.getElementById('incidentsTableBody').addEventListener('click', async fu
 // TODO: Lógica para cargar incidentes, enviar formulario (crear/editar), etc.
 // Cargar incidentes al iniciar
 document.addEventListener('DOMContentLoaded', loadIncidents);
+
+// Listener para el botón de búsqueda de dirección en el modal de incidentes
+incidentSearchAddressBtn.addEventListener('click', async function() {
+    const address = incidentAddressSearchInput.value.trim();
+    if (!address) return alert('Por favor, introduce una dirección para buscar.');
+
+    try {
+        const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+        const response = await fetch(searchUrl, { headers: { 'User-Agent': 'RCQEventsClient/1.0' } }); // Cambia el User-Agent
+        if (!response.ok) throw new Error(`Error HTTP de Nominatim: ${response.status}`);
+        const results = await response.json();
+
+        if (results && results.length > 0) {
+            const { lat, lon, display_name } = results[0];
+            const parsedLat = parseFloat(lat);
+            const parsedLng = parseFloat(lon);
+            
+            if (incidentMap) {
+                incidentMap.setView([parsedLat, parsedLng], 16); // Centrar mapa y hacer zoom
+                setIncidentMarker(parsedLat, parsedLng); // Pone el marcador y actualiza campos Lat/Lng
+            }
+            document.getElementById('incidentAddressDisplay').textContent = display_name || 'Ubicación encontrada.'; // Actualizar display de dirección
+            incidentAddressSearchInput.value = ''; // Limpiar input de búsqueda
+        } else {
+            alert('Dirección no encontrada. Prueba con más detalles o una dirección diferente.');
+            document.getElementById('incidentAddressDisplay').textContent = 'Dirección no encontrada.';
+        }
+    } catch (error) {
+        console.error('Error al buscar dirección:', error);
+        alert('Error de red o del servicio de geocodificación al buscar la dirección.');
+        document.getElementById('incidentAddressDisplay').textContent = 'Error al buscar dirección.';
+    }
+});
+
+// También permitir búsqueda con Enter en el input de dirección
+incidentAddressSearchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault(); // Evitar submit del formulario si estuviera dentro de uno
+        incidentSearchAddressBtn.click(); // Simular clic en el botón de búsqueda
+    }
+});
 
 </script>
 </body>
