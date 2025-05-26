@@ -5,6 +5,9 @@ from app.extensions import db
 from datetime import datetime
 from app.routes.auth import token_required
 from app.models.indicativo import Indicativo
+from app.models.incident import Incident
+from app.models.incident_assignment import IncidentAssignment
+from sqlalchemy import func
 
 bp = Blueprint('events', __name__, url_prefix='/events')
 
@@ -184,6 +187,127 @@ def event_control(event_id):
     event = Event.query.get_or_404(event_id)
     indicativos = Indicativo.query.filter_by(event_id=event_id).all()
     return render_template_string(EVENT_CONTROL_TEMPLATE, event=event, indicativos=indicativos)
+
+# --- INCIDENTES ---
+def incident_to_dict(incident):
+    return {
+        'id': incident.id,
+        'incident_number': incident.incident_number,
+        'event_id': incident.event_id,
+        'estado': incident.estado,
+        'reportado_por': incident.reportado_por,
+        'tipo': incident.tipo,
+        'descripcion': incident.descripcion,
+        'lat': incident.lat,
+        'lng': incident.lng,
+        'dorsal': incident.dorsal,
+        'patologia': incident.patologia,
+        'fecha_creacion': incident.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_creacion else None,
+        'assignments': [assignment_to_dict(a) for a in incident.assignments]
+    }
+
+def assignment_to_dict(a):
+    return {
+        'id': a.id,
+        'asignado_a': a.asignado_a,
+        'estado': a.estado,
+        'hora_preavisado': a.hora_preavisado.strftime('%Y-%m-%d %H:%M:%S') if a.hora_preavisado else None,
+        'hora_avisado': a.hora_avisado.strftime('%Y-%m-%d %H:%M:%S') if a.hora_avisado else None,
+        'hora_en_camino': a.hora_en_camino.strftime('%Y-%m-%d %H:%M:%S') if a.hora_en_camino else None,
+        'hora_en_lugar': a.hora_en_lugar.strftime('%Y-%m-%d %H:%M:%S') if a.hora_en_lugar else None,
+        'hora_desasignado': a.hora_desasignado.strftime('%Y-%m-%d %H:%M:%S') if a.hora_desasignado else None,
+    }
+
+@bp.route('/<int:event_id>/incidents', methods=['GET'])
+def get_incidents(event_id):
+    incidents = Incident.query.filter_by(event_id=event_id).order_by(Incident.incident_number.asc()).all()
+    return jsonify({'status': 'success', 'incidents': [incident_to_dict(i) for i in incidents]})
+
+@bp.route('/<int:event_id>/incidents', methods=['POST'])
+def create_incident(event_id):
+    data = request.get_json()
+    # Calcular el siguiente incident_number para el evento
+    max_num = db.session.query(func.max(Incident.incident_number)).filter_by(event_id=event_id).scalar() or 0
+    incident = Incident(
+        event_id=event_id,
+        incident_number=max_num + 1,
+        estado=data.get('estado', 'activo'),
+        reportado_por=data.get('reportado_por'),
+        tipo=data.get('tipo'),
+        descripcion=data.get('descripcion'),
+        lat=data.get('lat'),
+        lng=data.get('lng'),
+        dorsal=data.get('dorsal'),
+        patologia=data.get('patologia')
+    )
+    db.session.add(incident)
+    db.session.commit()
+    return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
+
+@bp.route('/<int:event_id>/incidents/<int:incident_id>', methods=['GET'])
+def get_incident(event_id, incident_id):
+    incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
+    return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
+
+@bp.route('/<int:event_id>/incidents/<int:incident_id>', methods=['PUT'])
+def update_incident(event_id, incident_id):
+    incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
+    data = request.get_json()
+    for field in ['estado', 'reportado_por', 'tipo', 'descripcion', 'lat', 'lng', 'dorsal', 'patologia']:
+        if field in data:
+            setattr(incident, field, data[field])
+    db.session.commit()
+    return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
+
+@bp.route('/<int:event_id>/incidents/<int:incident_id>', methods=['DELETE'])
+def delete_incident(event_id, incident_id):
+    incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
+    db.session.delete(incident)
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+# --- ASIGNACIONES ---
+@bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments', methods=['POST'])
+def add_assignment(event_id, incident_id):
+    incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
+    data = request.get_json()
+    assignment = IncidentAssignment(
+        incident_id=incident.id,
+        asignado_a=data['asignado_a'],
+        estado=data.get('estado', 'pre-avisado')
+    )
+    db.session.add(assignment)
+    db.session.commit()
+    return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
+
+@bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments/<int:assignment_id>', methods=['PUT'])
+def update_assignment(event_id, incident_id, assignment_id):
+    incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
+    assignment = IncidentAssignment.query.filter_by(id=assignment_id, incident_id=incident.id).first_or_404()
+    data = request.get_json()
+    estado = data.get('estado')
+    now = datetime.utcnow()
+    if estado and estado != assignment.estado:
+        assignment.estado = estado
+        if estado == 'pre-avisado':
+            assignment.hora_preavisado = now
+        elif estado == 'avisado y en camino':
+            assignment.hora_avisado = now
+            assignment.hora_en_camino = now
+        elif estado == 'en el lugar':
+            assignment.hora_en_lugar = now
+        elif estado == 'desasignado':
+            assignment.hora_desasignado = now
+    db.session.commit()
+    return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
+
+@bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments/<int:assignment_id>', methods=['DELETE'])
+def delete_assignment(event_id, incident_id, assignment_id):
+    incident = Incident.query.filter_by(event_id=event_id, id=incident_id).first_or_404()
+    assignment = IncidentAssignment.query.filter_by(id=assignment_id, incident_id=incident.id).first_or_404()
+    db.session.delete(assignment)
+    db.session.commit()
+    return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
 
 # Template HTML para la página de administración (parte 1)
 ADMIN_TEMPLATE_PART1 = """
