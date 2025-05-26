@@ -817,6 +817,31 @@ incidentForm.addEventListener('submit', async function(e) {
     }
 });
 
+// Event listener para botones de acción en la tabla de incidentes (ej. eliminar)
+document.getElementById('incidentsTableBody').addEventListener('click', async function(e) {
+    if (e.target.classList.contains('delete-incident-btn')) {
+        const incidentId = e.target.dataset.id;
+        if (confirm(`¿Estás seguro de que quieres eliminar el incidente ID ${incidentId}? Esta acción no se puede deshacer directamente.`)) {
+            try {
+                const response = await fetch(`/events/${eventId}/incidents/${incidentId}`, {
+                    method: 'DELETE',
+                });
+                const result = await response.json();
+                if (response.ok && result.status === 'success') {
+                    alert('Incidente eliminado (marcado como tal).');
+                    loadIncidents(); // Recargar la lista
+                } else {
+                    alert(`Error al eliminar incidente: ${result.message || 'Error desconocido'}`);
+                }
+            } catch (error) {
+                console.error('Error de red al eliminar incidente:', error);
+                alert('Error de red al intentar eliminar el incidente.');
+            }
+        }
+    }
+    // Aquí se pueden añadir más 'else if' para otros botones como editar o restaurar
+});
+
 // TODO: Lógica para cargar incidentes, enviar formulario (crear/editar), etc.
 // Cargar incidentes al iniciar
 document.addEventListener('DOMContentLoaded', loadIncidents);
