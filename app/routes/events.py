@@ -923,6 +923,7 @@ EVENT_CONTROL_TEMPLATE = '''
                 </select>
                 <button type="submit">Enviar</button>
                 <button type="button" id="sendLocationBtn">📍</button>
+                <button type="button" id="assignServiceBtn" title="Asignar servicio">🛠️</button>
             </form>
         </div>
         <div class="map-panel">
@@ -953,6 +954,34 @@ EVENT_CONTROL_TEMPLATE = '''
             </div>
             <div id="manualMap" style="height:250px; width:100%; margin-bottom:10px; border-radius:8px;"></div>
             <button type="button" id="sendManualLocationBtn" style="background:#8e44ad; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Enviar ubicación</button>
+        </div>
+    </div>
+    <!-- Modal de asignar servicio -->
+    <div id="assignServiceModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:8px; max-width:520px; width:95vw; margin:40px auto; padding:20px; position:relative;">
+            <button id="closeAssignServiceModal" style="position:absolute; top:10px; right:10px; background:#e74c3c; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:18px; cursor:pointer;">&times;</button>
+            <h2>Asignar servicio</h2>
+            <div style="margin-bottom:10px;">
+                <label><b>Asignar a:</b></label>
+                <select id="assignToIndicativoSelect" style="width:90%;">
+                    <option value="">-- Selecciona un indicativo --</option>
+                    {% for ind in indicativos %}
+                        <option value="{{ ind.id }}">{{ ind.indicativo }} ({{ ind.nombre or '' }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom:10px;">
+                <label><b>Descripción del servicio:</b></label>
+                <input type="text" id="assignServiceText" placeholder="Ej: Controlar acceso, patrullar zona..." style="width:90%;">
+            </div>
+            <div id="assignServiceMap" style="height:250px; width:100%; margin-bottom:10px; border-radius:8px;"></div>
+            <div style="margin-bottom:10px;">
+                <label><b>Latitud:</b></label>
+                <input type="number" id="assignLatInput" step="any" style="width:40%;">
+                <label><b>Longitud:</b></label>
+                <input type="number" id="assignLngInput" step="any" style="width:40%;">
+            </div>
+            <button type="button" id="sendAssignServiceBtn" style="background:#27ae60; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Asignar servicio</button>
         </div>
     </div>
 </div>
@@ -1107,6 +1136,8 @@ function appendMessage(msg) {
                 selectedMarker = marker;
             }
         });
+    } else if (msg.content.type === 'assign_service') {
+        div.innerHTML += `<div class=\"content\">🛠️ <b>Servicio asignado:</b> ${msg.content.text}<br>📍 Ubicación: (${msg.content.lat}, ${msg.content.lng})</div>`;
     } else {
         div.innerHTML += `<div class=\"content\">[${msg.content.type}]</div>`;
     }
@@ -1291,6 +1322,97 @@ addressInput.addEventListener('keydown', function(e) {
         e.preventDefault();
         searchAddressBtn.click();
     }
+});
+
+// JS para el modal de asignar servicio
+let assignServiceMap = null, assignServiceMarker;
+let assignServiceMapMarkers = {};
+const assignServiceModal = document.getElementById('assignServiceModal');
+const closeAssignServiceModal = document.getElementById('closeAssignServiceModal');
+const assignToIndicativoSelect = document.getElementById('assignToIndicativoSelect');
+const assignServiceText = document.getElementById('assignServiceText');
+const assignLatInput = document.getElementById('assignLatInput');
+const assignLngInput = document.getElementById('assignLngInput');
+const sendAssignServiceBtn = document.getElementById('sendAssignServiceBtn');
+
+document.getElementById('assignServiceBtn').addEventListener('click', function() {
+    openAssignServiceModal();
+});
+closeAssignServiceModal.addEventListener('click', closeAssignServiceModalFn);
+
+function openAssignServiceModal() {
+    assignServiceModal.style.display = 'flex';
+    assignToIndicativoSelect.value = '';
+    assignServiceText.value = '';
+    assignLatInput.value = '';
+    assignLngInput.value = '';
+    // Mapa
+    if (!assignServiceMap) {
+        assignServiceMap = L.map('assignServiceMap').setView([41.3874, 2.1686], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(assignServiceMap);
+        assignServiceMap.on('click', function(e) {
+            setAssignServiceMarker(e.latlng.lat, e.latlng.lng);
+        });
+    } else {
+        assignServiceMap.setView([41.3874, 2.1686], 13);
+    }
+    // Limpiar marcador manual
+    if (assignServiceMarker) assignServiceMap.removeLayer(assignServiceMarker);
+    // Limpiar marcadores de otros indicativos
+    Object.values(assignServiceMapMarkers).forEach(m => assignServiceMap.removeLayer(m));
+    assignServiceMapMarkers = {};
+    // Añadir marcadores de las últimas ubicaciones de cada indicativo
+    Object.values(lastLocations).forEach(msg => {
+        if (msg.content.type === 'location') {
+            const color = msg.indicativo_color || '#3498db';
+            const marker = L.marker([msg.content.lat, msg.content.lng], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style=\"background:${color};width:18px;height:18px;border-radius:50%;border:2px solid #fff;\"></div>`
+                })
+            }).addTo(assignServiceMap);
+            marker.bindPopup(`<b>${msg.indicativo}</b><br>${msg.timestamp}`);
+            assignServiceMapMarkers[msg.indicativo_id] = marker;
+        }
+    });
+}
+function closeAssignServiceModalFn() {
+    assignServiceModal.style.display = 'none';
+}
+function setAssignServiceMarker(lat, lng) {
+    if (assignServiceMarker) assignServiceMap.removeLayer(assignServiceMarker);
+    assignServiceMarker = L.marker([lat, lng]).addTo(assignServiceMap);
+    assignLatInput.value = lat;
+    assignLngInput.value = lng;
+}
+assignLatInput.addEventListener('change', function() {
+    const lat = parseFloat(assignLatInput.value);
+    const lng = parseFloat(assignLngInput.value);
+    if (!isNaN(lat) && !isNaN(lng)) setAssignServiceMarker(lat, lng);
+});
+assignLngInput.addEventListener('change', function() {
+    const lat = parseFloat(assignLatInput.value);
+    const lng = parseFloat(assignLngInput.value);
+    if (!isNaN(lat) && !isNaN(lng)) setAssignServiceMarker(lat, lng);
+});
+sendAssignServiceBtn.addEventListener('click', function() {
+    const toIndicativoId = assignToIndicativoSelect.value;
+    const text = assignServiceText.value.trim();
+    const lat = parseFloat(assignLatInput.value);
+    const lng = parseFloat(assignLngInput.value);
+    if (!toIndicativoId) return alert('Selecciona un indicativo destinatario');
+    if (!text) return alert('Introduce una descripción del servicio');
+    if (isNaN(lat) || isNaN(lng)) return alert('Selecciona una ubicación en el mapa');
+    if (!indicativoId) return alert('Selecciona tu indicativo');
+    socket.emit('send_message', {
+        event_id: eventId,
+        indicativo_id: indicativoId,
+        to_indicativo_id: toIndicativoId,
+        content: { type: 'assign_service', lat, lng, text }
+    });
+    closeAssignServiceModalFn();
 });
 </script>
 </body>
