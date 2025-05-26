@@ -664,6 +664,9 @@ const incidentTipoInput = document.getElementById('incidentTipo');
 const dorsalGroup = document.getElementById('dorsalGroup');
 const patologiaGroup = document.getElementById('patologiaGroup');
 
+// Campo oculto o variable para guardar el ID del incidente que se está editando
+let editingIncidentId = null;
+
 // Mapa para el modal de incidentes
 let incidentMap = null, incidentMarker = null;
 
@@ -673,6 +676,10 @@ addIncidentBtn.addEventListener('click', function() {
     // Asegúrate de que los campos opcionales estén ocultos al abrir para nuevo incidente
     dorsalGroup.style.display = 'none';
     patologiaGroup.style.display = 'none';
+    editingIncidentId = null; // Asegurarse de que no estamos en modo edición
+    document.getElementById('incidentLat').value = ''; // Limpiar campos de lat/lng
+    document.getElementById('incidentLng').value = '';
+
     incidentModal.style.display = 'flex';
     
     // Inicializar o re-centrar mapa del modal de incidentes
@@ -716,6 +723,67 @@ function setIncidentMarker(lat, lng) {
     incidentMarker = L.marker([lat, lng]).addTo(incidentMap);
     document.getElementById('incidentLat').value = lat;
     document.getElementById('incidentLng').value = lng;
+}
+
+// Función para poblar y abrir el modal de incidentes para edición
+async function openIncidentModalForEdit(incidentId) {
+    try {
+        const response = await fetch(`/events/${eventId}/incidents/${incidentId}`);
+        if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+        const result = await response.json();
+
+        if (result.status === 'success' && result.incident) {
+            const incident = result.incident;
+            incidentModalTitle.textContent = `Editando Incidente #${incident.incident_number}`;
+            document.getElementById('incidentTipo').value = incident.tipo || '';
+            document.getElementById('incidentDescripcion').value = incident.descripcion || '';
+            document.getElementById('incidentReportadoPor').value = incident.reportado_por || '';
+            document.getElementById('incidentEstado').value = incident.estado || 'activo';
+            document.getElementById('incidentDorsal').value = incident.dorsal || '';
+            document.getElementById('incidentPatologia').value = incident.patologia || '';
+            
+            // Mostrar campos de dorsal/patología si es asistencia médica
+            if (incident.tipo === '🚑 Asistencia Médica') {
+                dorsalGroup.style.display = 'block';
+                patologiaGroup.style.display = 'block';
+            } else {
+                dorsalGroup.style.display = 'none';
+                patologiaGroup.style.display = 'none';
+            }
+
+            editingIncidentId = incident.id; // Guardar el ID del incidente que se está editando
+
+            // Mapa
+            document.getElementById('incidentLat').value = incident.lat || '';
+            document.getElementById('incidentLng').value = incident.lng || '';
+            if (incidentMap) {
+                 if (incidentMarker) incidentMap.removeLayer(incidentMarker);
+                 incidentMarker = null; // Reset marker
+                if (incident.lat && incident.lng) {
+                    const latLng = [incident.lat, incident.lng];
+                    incidentMap.setView(latLng, 15);
+                    setIncidentMarker(incident.lat, incident.lng);
+                } else {
+                    incidentMap.setView([41.3874, 2.1686], 13); // Vista por defecto si no hay coords
+                }
+            } else {
+                // Si el mapa no está inicializado (raro aquí, pero por si acaso)
+                 incidentMap = L.map('incidentMap').setView( (incident.lat && incident.lng) ? [incident.lat, incident.lng] : [41.3874, 2.1686], 13);
+                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(incidentMap);
+                 incidentMap.on('click', function(e) { setIncidentMarker(e.latlng.lat, e.latlng.lng); });
+                 if (incident.lat && incident.lng) setIncidentMarker(incident.lat, incident.lng);
+            }
+             setTimeout(() => { if (incidentMap) incidentMap.invalidateSize();}, 10);
+
+
+            incidentModal.style.display = 'flex';
+        } else {
+            alert(`Error al cargar datos del incidente: ${result.message || 'Incidente no encontrado.'}`);
+        }
+    } catch (error) {
+        console.error('Error al obtener datos del incidente para editar:', error);
+        alert('Error de red al intentar cargar datos del incidente.');
+    }
 }
 
 function renderIncidents(incidents) {
@@ -820,9 +888,17 @@ incidentForm.addEventListener('submit', async function(e) {
     if (!formData.dorsal) delete formData.dorsal;
     if (!formData.patologia) delete formData.patologia;
 
+    // Determinar si es creación (POST) o actualización (PUT)
+    let url = `/events/${eventId}/incidents`;
+    let method = 'POST';
+    if (editingIncidentId) {
+        url += `/${editingIncidentId}`;
+        method = 'PUT';
+    }
+
     try {
-        const response = await fetch(`/events/${eventId}/incidents`, {
-            method: 'POST',
+        const response = await fetch(url, {
+            method: method,
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -832,15 +908,21 @@ incidentForm.addEventListener('submit', async function(e) {
         const result = await response.json();
 
         if (response.ok && result.status === 'success') {
-            alert('Incidente creado exitosamente!');
+            alert(`Incidente ${editingIncidentId ? 'actualizado' : 'creado'} exitosamente!`);
             incidentModal.style.display = 'none';
+            incidentForm.reset(); // Limpiar formulario
+            editingIncidentId = null; // Resetear modo edición y el ID
+            if (incidentMarker) {
+                incidentMap.removeLayer(incidentMarker);
+                incidentMarker = null;
+            }
             loadIncidents(); // Recargar la lista de incidentes
         } else {
-            alert(`Error al crear incidente: ${result.message || 'Error desconocido'}`);
+            alert(`Error al ${editingIncidentId ? 'actualizar' : 'crear'} incidente: ${result.message || 'Error desconocido'}`);
         }
     } catch (error) {
-        console.error('Error en la petición de crear incidente:', error);
-        alert('Error de red al intentar crear el incidente.');
+        console.error(`Error en la petición de ${editingIncidentId ? 'actualizar' : 'crear'} incidente:`, error);
+        alert(`Error de red al intentar ${editingIncidentId ? 'actualizar' : 'crear'} el incidente.`);
     }
 });
 
@@ -866,7 +948,12 @@ document.getElementById('incidentsTableBody').addEventListener('click', async fu
             }
         }
     }
-    // Aquí se pueden añadir más 'else if' para otros botones como editar o restaurar
+    // Botón de Editar Incidente
+    else if (e.target.classList.contains('edit-incident-btn')) {
+        const incidentId = e.target.dataset.id;
+        openIncidentModalForEdit(incidentId);
+    }
+    // Aquí se pueden añadir más 'else if' para otros botones como restaurar
     else if (e.target.classList.contains('restore-incident-btn')) {
         const incidentId = e.target.dataset.id;
         if (confirm(`¿Estás seguro de que quieres restaurar el incidente ID ${incidentId}?`)) {
