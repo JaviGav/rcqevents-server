@@ -105,7 +105,7 @@
                             <select id="indicativo" name="indicativo" required>
                                 <option value="">Seleccionar indicativo...</option>
                                 {% for indicativo in indicativos %}
-                                <option value="{{ indicativo.indicativo }}">{{ indicativo.indicativo }} - {{ indicativo.nombre or '' }}</option>
+                                <option value="{{ indicativo.indicativo }}" data-id="{{ indicativo.id }}">{{ indicativo.indicativo }} - {{ indicativo.nombre or '' }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -143,15 +143,24 @@
                 <h2>Mapa</h2>
                 <div id="map"></div>
                 <div id="chatHistory"></div>
+                <form id="chatForm" style="margin-top: 10px;">
+                    <div class="form-group">
+                        <input type="text" id="messageInput" placeholder="Escribe un mensaje..." required>
+                        <button type="submit">Enviar</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
         let map;
         let markers = {};
         let incidents = [];
+        let socket;
+        let currentIndicativoId = null;
 
         document.addEventListener('DOMContentLoaded', function() {
             // Inicializar mapa
@@ -159,6 +168,54 @@
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map);
+
+            // Inicializar Socket.IO
+            socket = io();
+
+            // Manejar conexión
+            socket.on('connect', () => {
+                console.log('Conectado al servidor');
+                // Seleccionar indicativo al cargar
+                const indicativoSelect = document.getElementById('indicativo');
+                if (indicativoSelect.value) {
+                    joinEvent(indicativoSelect.value);
+                }
+            });
+
+            // Manejar eventos del chat
+            socket.on('message_history', (data) => {
+                displayMessages(data.messages);
+            });
+
+            socket.on('new_message', (message) => {
+                appendMessage(message);
+            });
+
+            socket.on('user_joined', (data) => {
+                appendSystemMessage(data.message);
+            });
+
+            socket.on('user_left', (data) => {
+                appendSystemMessage(data.message);
+            });
+
+            socket.on('error', (data) => {
+                console.error('Error:', data.message);
+                appendSystemMessage('Error: ' + data.message);
+            });
+
+            // Manejar cambio de indicativo
+            document.getElementById('indicativo').addEventListener('change', function(e) {
+                if (currentIndicativoId) {
+                    socket.emit('leave_event', {
+                        event_id: {{ event.id }},
+                        indicativo_id: currentIndicativoId
+                    });
+                }
+                if (e.target.value) {
+                    joinEvent(e.target.value);
+                }
+            });
 
             // Cargar incidentes
             loadIncidents();
@@ -168,7 +225,88 @@
                 e.preventDefault();
                 createIncident();
             });
+
+            // Manejar envío de mensajes
+            document.getElementById('chatForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const input = document.getElementById('messageInput');
+                const message = input.value.trim();
+                if (!message || !currentIndicativoId) return;
+
+                socket.emit('send_message', {
+                    event_id: {{ event.id }},
+                    indicativo_id: currentIndicativoId,
+                    content: {
+                        type: 'text',
+                        text: message
+                    }
+                });
+
+                input.value = '';
+            });
         });
+
+        function joinEvent(indicativo) {
+            // Buscar el ID del indicativo seleccionado
+            const indicativoOption = Array.from(document.getElementById('indicativo').options)
+                .find(opt => opt.value === indicativo);
+            if (!indicativoOption) return;
+
+            const indicativoId = indicativoOption.dataset.id;
+            if (!indicativoId) return;
+
+            currentIndicativoId = indicativoId;
+            socket.emit('join_event', {
+                event_id: {{ event.id }},
+                indicativo_id: indicativoId
+            });
+        }
+
+        function displayMessages(messages) {
+            const chatHistory = document.getElementById('chatHistory');
+            chatHistory.innerHTML = '';
+            messages.forEach(message => appendMessage(message));
+        }
+
+        function appendMessage(message) {
+            const chatHistory = document.getElementById('chatHistory');
+            const div = document.createElement('div');
+            div.className = 'message';
+            
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+            meta.innerHTML = `
+                <span style="color: ${message.indicativo_color || '#3498db'}">${message.indicativo}</span>
+                <span>${message.timestamp}</span>
+            `;
+            
+            const content = document.createElement('div');
+            content.className = 'content';
+            
+            if (message.content.type === 'location') {
+                content.className += ' location';
+                content.innerHTML = `
+                    <strong>Ubicación:</strong> ${message.content.lat}, ${message.content.lng}<br>
+                    ${message.content.description || ''}
+                `;
+            } else {
+                content.textContent = message.content.text || '';
+            }
+            
+            div.appendChild(meta);
+            div.appendChild(content);
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        function appendSystemMessage(message) {
+            const chatHistory = document.getElementById('chatHistory');
+            const div = document.createElement('div');
+            div.className = 'message system';
+            div.innerHTML = `<em>${message}</em>`;
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
 
         function loadIncidents() {
             fetch(`/events/{{ event.id }}/incidents`)
