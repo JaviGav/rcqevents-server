@@ -553,6 +553,42 @@
              </div>
          </div>
      </div>
+     
+     <!-- Modal rápido de cambio de estado de asignación -->
+     <div id="quickAssignmentStatusModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:2300; overflow-y:auto; padding:20px 0;">
+         <div style="background:#fff; border-radius:8px; max-width:400px; width:95vw; margin:0 auto; padding:20px; position:relative; max-height:calc(100vh - 40px); overflow-y:auto;">
+             <button onclick="document.getElementById('quickAssignmentStatusModal').style.display='none'; currentAssignmentForStatusChange=null;" style="position:absolute; top:10px; right:10px; background:#e74c3c; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:18px; cursor:pointer;">&times;</button>
+             <h2 id="quickAssignmentStatusTitle">Cambiar Estado de Asignación</h2>
+             <p id="quickAssignmentStatusInfo" style="color:#666; margin-bottom:20px;"></p>
+             
+             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                 <button class="quick-status-btn" data-status="pre-avisado" onclick="changeAssignmentStatusQuick('pre-avisado')" style="padding:12px 8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:#fff3cd; color:#856404; border:2px solid #ffeaa7; text-align:center; font-size:12px;">
+                     <div>🔔</div>
+                     <div>Pre-avisado</div>
+                 </button>
+                 
+                 <button class="quick-status-btn" data-status="avisado" onclick="changeAssignmentStatusQuick('avisado')" style="padding:12px 8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:#d1ecf1; color:#0c5460; border:2px solid #bee5eb; text-align:center; font-size:12px;">
+                     <div>📢</div>
+                     <div>Avisado</div>
+                 </button>
+                 
+                 <button class="quick-status-btn" data-status="en camino" onclick="changeAssignmentStatusQuick('en camino')" style="padding:12px 8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:#e2e3e5; color:#383d41; border:2px solid #d6d8db; text-align:center; font-size:12px;">
+                     <div>🚗</div>
+                     <div>En camino</div>
+                 </button>
+                 
+                 <button class="quick-status-btn" data-status="en el lugar" onclick="changeAssignmentStatusQuick('en el lugar')" style="padding:12px 8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:#cce5ff; color:#004085; border:2px solid #99d6ff; text-align:center; font-size:12px;">
+                     <div>📍</div>
+                     <div>En el lugar</div>
+                 </button>
+                 
+                 <button class="quick-status-btn" data-status="finalizado" onclick="changeAssignmentStatusQuick('finalizado')" style="padding:12px 8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:#d4edda; color:#155724; border:2px solid #c3e6cb; text-align:center; font-size:12px; grid-column: 1 / -1;">
+                     <div>✅</div>
+                     <div>Finalizado</div>
+                 </button>
+             </div>
+         </div>
+     </div>
 </div>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -1353,7 +1389,15 @@ function renderIncidents(incidents) {
                 
                 if (index > 0) assignmentsHtml += '<br>';
                 assignmentsHtml += `
-                    <div style="display:inline-flex; align-items:center; margin:2px 0; padding:3px 6px; border-radius:12px; font-size:11px; background:${statusColors.bg}; color:${statusColors.text}; border:1px solid ${statusColors.border};">
+                    <div class="assignment-status-badge" 
+                         data-assignment-id="${assignment.id}" 
+                         data-assignment-name="${assignment.indicativo_nombre}" 
+                         data-assignment-status="${assignment.estado_asignacion}" 
+                         data-incident-id="${incident.id}"
+                         style="display:inline-flex; align-items:center; margin:2px 0; padding:3px 6px; border-radius:12px; font-size:11px; background:${statusColors.bg}; color:${statusColors.text}; border:1px solid ${statusColors.border}; cursor:pointer; transition: all 0.2s ease;" 
+                         title="Clic para cambiar estado de asignación"
+                         onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)'"
+                         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
                         <span style="margin-right:4px;">${statusEmoji}</span>
                         <strong style="margin-right:4px;">${assignment.indicativo_nombre}</strong>
                         <span>${statusText}</span>
@@ -1371,6 +1415,17 @@ function renderIncidents(incidents) {
         } else {
             actionsCell.innerHTML = `<button class="edit-incident-btn" data-id="${incident.id}" title="Editar incidente">✏️</button> <button class="assign-incident-btn" data-id="${incident.id}" title="Asignar incidente">👥</button> <button class="delete-incident-btn" data-id="${incident.id}" title="Eliminar incidente">🗑️</button>`;
         }
+    });
+    
+    // Agregar event listeners para los badges de asignación
+    document.querySelectorAll('.assignment-status-badge').forEach(badge => {
+        badge.addEventListener('click', function() {
+            const assignmentId = this.dataset.assignmentId;
+            const assignmentName = this.dataset.assignmentName;
+            const assignmentStatus = this.dataset.assignmentStatus;
+            const incidentId = this.dataset.incidentId;
+            openQuickAssignmentStatusModal(assignmentId, assignmentName, assignmentStatus, incidentId);
+        });
     });
 }
 
@@ -2270,6 +2325,69 @@ applyCoordsBtn.addEventListener('click', async function() {
     }
 });
 
+// Función para abrir el modal rápido de cambio de estado de asignación
+function openQuickAssignmentStatusModal(assignmentId, assignmentName, currentStatus, incidentId) {
+    currentAssignmentForStatusChange = assignmentId;
+    currentIncidentForAssignment = incidentId; // Para recargar después
+    
+    const modal = document.getElementById('quickAssignmentStatusModal');
+    const title = document.getElementById('quickAssignmentStatusTitle');
+    const info = document.getElementById('quickAssignmentStatusInfo');
+    
+    title.textContent = 'Cambiar Estado de Asignación';
+    info.textContent = `${assignmentName} - Estado actual: ${getStatusText(currentStatus)}`;
+    
+    // Resaltar el estado actual en los botones
+    document.querySelectorAll('.quick-status-btn').forEach(btn => {
+        const btnStatus = btn.dataset.status;
+        if (btnStatus === currentStatus) {
+            btn.style.borderWidth = '3px';
+            btn.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+            btn.style.transform = 'scale(1.02)';
+        } else {
+            btn.style.borderWidth = '2px';
+            btn.style.boxShadow = 'none';
+            btn.style.transform = 'scale(1)';
+        }
+    });
+    
+    modal.style.display = 'flex';
+}
+
+// Función para cambiar estado de asignación rápidamente
+async function changeAssignmentStatusQuick(newStatus) {
+    if (!currentAssignmentForStatusChange) return;
+    
+    try {
+        const response = await fetch(`/events/${eventId}/incidents/${currentIncidentForAssignment}/assignments/${currentAssignmentForStatusChange}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                estado_asignacion: newStatus
+            }),
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.status === 'success') {
+            // Cerrar modal
+            document.getElementById('quickAssignmentStatusModal').style.display = 'none';
+            currentAssignmentForStatusChange = null;
+            
+            // Recargar incidentes para mostrar el cambio
+            setTimeout(() => {
+                loadIncidents();
+            }, 300);
+        } else {
+            alert(`Error al cambiar estado: ${result.message || 'Error desconocido'}`);
+        }
+    } catch (error) {
+        console.error('Error al cambiar estado de asignación:', error);
+        alert('Error de red al intentar cambiar el estado.');
+    }
+}
 </script>
 </body>
 </html>
