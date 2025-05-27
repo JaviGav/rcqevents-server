@@ -798,6 +798,31 @@ async function openIncidentModalForEdit(incidentId) {
     }
 }
 
+// Función para cargar dirección de un incidente específico
+async function loadAddressForIncident(incidentId, spanId) {
+    try {
+        const response = await fetch(`/events/${eventId}/incidents/${incidentId}/get_address_only`);
+        const result = await response.json();
+        const addressSpan = document.getElementById(spanId);
+        if (addressSpan) {
+            if (response.ok && result.status === 'success') {
+                addressSpan.textContent = result.address;
+                addressSpan.style.color = '#333';
+            } else {
+                addressSpan.textContent = 'Dirección no disponible';
+                addressSpan.style.color = '#999';
+            }
+        }
+    } catch (error) {
+        console.error('Error al obtener dirección:', error);
+        const addressSpan = document.getElementById(spanId);
+        if (addressSpan) {
+            addressSpan.textContent = 'Error al cargar dirección';
+            addressSpan.style.color = '#dc3545';
+        }
+    }
+}
+
 function renderIncidents(incidents) {
     const tableBody = document.getElementById('incidentsTableBody');
     tableBody.innerHTML = ''; // Limpiar tabla
@@ -826,10 +851,12 @@ function renderIncidents(incidents) {
         const locCell = row.insertCell();
         locCell.style.minWidth = '200px'; // Para dar espacio a la dirección
         if (incident.lat && incident.lng) {
-            const gmapsLink = `<a href="https://maps.google.com/?q=${incident.lat},${incident.lng}" target="_blank" title="Ver en mapa">${parseFloat(incident.lat).toFixed(4)}, ${parseFloat(incident.lng).toFixed(4)}</a>`;
-            const addressPlaceholderId = `address-placeholder-${incident.id}`;
-            const loadAddressBtn = `<span id="${addressPlaceholderId}" class="load-address-btn" data-incident-id="${incident.id}" style="cursor:pointer; color:blue; text-decoration:underline; margin-left:5px;">🔎</span>`;
-            locCell.innerHTML = `${gmapsLink} ${loadAddressBtn}`;
+            const gmapsLink = `<a href="https://maps.google.com/?q=${incident.lat},${incident.lng}" target="_blank" title="Ver en mapa" style="color:#007bff; text-decoration:none;">📍</a>`;
+            const addressSpanId = `address-span-${incident.id}`;
+            locCell.innerHTML = `${gmapsLink} <span id="${addressSpanId}" style="margin-left:5px;">Cargando dirección...</span>`;
+            
+            // Cargar dirección automáticamente
+            loadAddressForIncident(incident.id, addressSpanId);
         } else {
             locCell.textContent = '-';
         }
@@ -990,30 +1017,7 @@ document.getElementById('incidentsTableBody').addEventListener('click', async fu
             }
         }
     }
-    // Botón de Cargar Dirección en la tabla
-    else if (e.target.classList.contains('load-address-btn')) {
-        const incidentId = e.target.dataset.id;
-        const placeholderSpan = e.target; // El span en el que se hizo clic
-        placeholderSpan.textContent = 'Cargando...'; // Feedback visual
-        placeholderSpan.style.cursor = 'default';
-        placeholderSpan.style.color = 'inherit';
-        placeholderSpan.style.textDecoration = 'none';
-        placeholderSpan.classList.remove('load-address-btn'); // Evitar múltiples clics
 
-        try {
-            const response = await fetch(`/events/${eventId}/incidents/${incidentId}/get_address_only`);
-            const result = await response.json();
-            if (response.ok && result.status === 'success') {
-                placeholderSpan.textContent = result.address;
-            } else {
-                placeholderSpan.textContent = 'Error al cargar dirección';
-                console.error('Error al obtener dirección:', result.message);
-            }
-        } catch (error) {
-            placeholderSpan.textContent = 'Error de red';
-            console.error('Error de red al obtener dirección:', error);
-        }
-    }
 });
 
 // TODO: Lógica para cargar incidentes, enviar formulario (crear/editar), etc.
