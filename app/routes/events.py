@@ -744,123 +744,121 @@ def create_incident_assignment(event_id, incident_id):
             if indicativo_id == -1 and servicio_nombre:
                 assignment_text_cache[assignment_id] = servicio_nombre
 
-        except Exception as e:
-            current_app.logger.error(f"[DEBUG] ❌ Error al enviar mensaje de servicio asignado automáticamente: {e}")
-            # No fallar la asignación si el mensaje no se puede enviar
-            pass
-
-        if indicativo_found:
-            current_app.logger.info(f"[DEBUG] Iniciando envío de mensaje automático para indicativo {indicativo_found.indicativo}")
-            try:
-                # Importar socketio para enviar el mensaje
-                from app.socket import socketio
-                from app.models.message import Message
-                
-                # Construir la descripción del servicio con información del incidente
-                service_description = f"🚨 INCIDENTE #{incident.incident_number}: {incident.tipo}"
-                
-                # Añadir dorsal si es asistencia médica
-                if incident.tipo == '🚑 Asistencia Médica' and incident.dorsal:
-                    service_description += f" (Dorsal: {incident.dorsal})"
-                
-                # Añadir descripción del incidente si existe
-                if incident.descripcion:
-                    service_description += f"\n📝 Descripción: {incident.descripcion}"
-                
-                # Añadir información adicional de ubicación si existe
-                if incident.info_ubicacion:
-                    service_description += f"\n📍 Ubicación: {incident.info_ubicacion}"
-                
-                # Añadir dirección formateada si existe
-                if incident.direccion_formateada:
-                    service_description += f"\n🗺️ Dirección: {incident.direccion_formateada}"
-                
-                # Añadir patología si es asistencia médica y existe
-                if incident.tipo == '🚑 Asistencia Médica' and incident.patologia:
-                    service_description += f"\n🏥 Patología: {incident.patologia}"
-                
-                # Añadir reportado por si existe
-                if incident.reportado_por:
-                    service_description += f"\n👤 Reportado por: {incident.reportado_por}"
-                
-                # Añadir estado del incidente
-                service_description += f"\n📊 Estado: {incident.estado}"
-                
-                current_app.logger.info(f"[DEBUG] Descripción del servicio construida: {service_description}")
-                
-                # Crear el mensaje de servicio asignado
-                # Necesitamos un indicativo "del sistema" para enviar el mensaje
-                # Buscaremos un indicativo que sea CME, o el primero disponible
-                system_indicativo = None
-                
-                # Intentar encontrar CME primero
-                for ind in Indicativo.query.filter_by(event_id=event_id).all():
-                    if 'CME' in ind.indicativo.upper() or 'CENTRAL' in ind.indicativo.upper():
-                        system_indicativo = ind
-                        current_app.logger.info(f"[DEBUG] Encontrado indicativo CME/CENTRAL: {ind.indicativo}")
-                        break
-                
-                # Si no hay CME, usar el primer indicativo disponible
-                if not system_indicativo:
-                    system_indicativo = Indicativo.query.filter_by(event_id=event_id).first()
+            # **NUEVA FUNCIONALIDAD: Enviar mensaje de servicio asignado si es un indicativo del evento**
+            if indicativo_found:
+                current_app.logger.info(f"[DEBUG] Iniciando envío de mensaje automático para indicativo {indicativo_found.indicativo}")
+                try:
+                    # Importar socketio para enviar el mensaje
+                    from app.socket import socketio
+                    from app.models.message import Message
+                    
+                    # Construir la descripción del servicio con información del incidente
+                    service_description = f"🚨 INCIDENTE #{incident.incident_number}: {incident.tipo}"
+                    
+                    # Añadir dorsal si es asistencia médica
+                    if incident.tipo == '🚑 Asistencia Médica' and incident.dorsal:
+                        service_description += f" (Dorsal: {incident.dorsal})"
+                    
+                    # Añadir descripción del incidente si existe
+                    if incident.descripcion:
+                        service_description += f"\n📝 Descripción: {incident.descripcion}"
+                    
+                    # Añadir información adicional de ubicación si existe
+                    if incident.info_ubicacion:
+                        service_description += f"\n📍 Ubicación: {incident.info_ubicacion}"
+                    
+                    # Añadir dirección formateada si existe
+                    if incident.direccion_formateada:
+                        service_description += f"\n🗺️ Dirección: {incident.direccion_formateada}"
+                    
+                    # Añadir patología si es asistencia médica y existe
+                    if incident.tipo == '🚑 Asistencia Médica' and incident.patologia:
+                        service_description += f"\n🏥 Patología: {incident.patologia}"
+                    
+                    # Añadir reportado por si existe
+                    if incident.reportado_por:
+                        service_description += f"\n👤 Reportado por: {incident.reportado_por}"
+                    
+                    # Añadir estado del incidente
+                    service_description += f"\n📊 Estado: {incident.estado}"
+                    
+                    current_app.logger.info(f"[DEBUG] Descripción del servicio construida: {service_description}")
+                    
+                    # Crear el mensaje de servicio asignado
+                    # Necesitamos un indicativo "del sistema" para enviar el mensaje
+                    # Buscaremos un indicativo que sea CME, o el primero disponible
+                    system_indicativo = None
+                    
+                    # Intentar encontrar CME primero
+                    for ind in Indicativo.query.filter_by(event_id=event_id).all():
+                        if 'CME' in ind.indicativo.upper() or 'CENTRAL' in ind.indicativo.upper():
+                            system_indicativo = ind
+                            current_app.logger.info(f"[DEBUG] Encontrado indicativo CME/CENTRAL: {ind.indicativo}")
+                            break
+                    
+                    # Si no hay CME, usar el primer indicativo disponible
+                    if not system_indicativo:
+                        system_indicativo = Indicativo.query.filter_by(event_id=event_id).first()
+                        if system_indicativo:
+                            current_app.logger.info(f"[DEBUG] Usando primer indicativo disponible como emisor: {system_indicativo.indicativo}")
+                    
                     if system_indicativo:
-                        current_app.logger.info(f"[DEBUG] Usando primer indicativo disponible como emisor: {system_indicativo.indicativo}")
-                
-                if system_indicativo:
-                    # Determinar si tenemos coordenadas para el mensaje
-                    message_content = {
-                        'type': 'assign_service',
-                        'text': service_description
-                    }
-                    
-                    # Añadir coordenadas si están disponibles
-                    if incident.lat is not None and incident.lng is not None:
-                        message_content['lat'] = incident.lat
-                        message_content['lng'] = incident.lng
-                        current_app.logger.info(f"[DEBUG] Añadiendo coordenadas al mensaje: {incident.lat}, {incident.lng}")
+                        # Determinar si tenemos coordenadas para el mensaje
+                        message_content = {
+                            'type': 'assign_service',
+                            'text': service_description
+                        }
+                        
+                        # Añadir coordenadas si están disponibles
+                        if incident.lat is not None and incident.lng is not None:
+                            message_content['lat'] = incident.lat
+                            message_content['lng'] = incident.lng
+                            current_app.logger.info(f"[DEBUG] Añadiendo coordenadas al mensaje: {incident.lat}, {incident.lng}")
+                        else:
+                            # Si no hay coordenadas, añadir nota al mensaje
+                            message_content['text'] += f"\n⚠️ Sin coordenadas GPS disponibles"
+                            current_app.logger.info(f"[DEBUG] Sin coordenadas disponibles para el incidente")
+                        
+                        current_app.logger.info(f"[DEBUG] Creando mensaje de {system_indicativo.indicativo} (ID: {system_indicativo.id}) a {indicativo_found.indicativo} (ID: {indicativo_found.id})")
+                        
+                        # Crear y guardar el mensaje en la base de datos
+                        message = Message(
+                            event_id=event_id,
+                            indicativo_id=system_indicativo.id,  # Emisor: CME o primer indicativo del evento
+                            to_indicativo_id=indicativo_found.id,  # Destinatario: indicativo asignado
+                            content=message_content
+                        )
+                        db.session.add(message)
+                        db.session.commit()
+                        
+                        current_app.logger.info(f"[DEBUG] Mensaje guardado en BD con ID: {message.id}")
+                        
+                        # Emitir el mensaje por socket
+                        msg_dict = message.to_dict()
+                        
+                        # Enviar mensaje privado al indicativo asignado
+                        room_dest = f'indicativo_{indicativo_found.id}_event_{event_id}'
+                        socketio.emit('new_message', msg_dict, room=room_dest)
+                        current_app.logger.info(f"[DEBUG] Mensaje enviado a room: {room_dest}")
+                        
+                        # También enviar al emisor (sistema) si es diferente
+                        if system_indicativo.id != indicativo_found.id:
+                            room_emisor = f'indicativo_{system_indicativo.id}_event_{event_id}'
+                            socketio.emit('new_message', msg_dict, room=room_emisor)
+                            current_app.logger.info(f"[DEBUG] Mensaje enviado también a emisor room: {room_emisor}")
+                        
+                        current_app.logger.info(f"[DEBUG] ✅ Mensaje de servicio asignado enviado automáticamente para incidente #{incident.incident_number} a {indicativo_found.indicativo}")
                     else:
-                        # Si no hay coordenadas, añadir nota al mensaje
-                        message_content['text'] += f"\n⚠️ Sin coordenadas GPS disponibles"
-                        current_app.logger.info(f"[DEBUG] Sin coordenadas disponibles para el incidente")
+                        current_app.logger.error(f"[DEBUG] ❌ No se encontró ningún indicativo del sistema para enviar el mensaje")
                     
-                    current_app.logger.info(f"[DEBUG] Creando mensaje de {system_indicativo.indicativo} (ID: {system_indicativo.id}) a {indicativo_found.indicativo} (ID: {indicativo_found.id})")
-                    
-                    # Crear y guardar el mensaje en la base de datos
-                    message = Message(
-                        event_id=event_id,
-                        indicativo_id=system_indicativo.id,  # Emisor: CME o primer indicativo del evento
-                        to_indicativo_id=indicativo_found.id,  # Destinatario: indicativo asignado
-                        content=message_content
-                    )
-                    db.session.add(message)
-                    db.session.commit()
-                    
-                    current_app.logger.info(f"[DEBUG] Mensaje guardado en BD con ID: {message.id}")
-                    
-                    # Emitir el mensaje por socket
-                    msg_dict = message.to_dict()
-                    
-                    # Enviar mensaje privado al indicativo asignado
-                    room_dest = f'indicativo_{indicativo_found.id}_event_{event_id}'
-                    socketio.emit('new_message', msg_dict, room=room_dest)
-                    current_app.logger.info(f"[DEBUG] Mensaje enviado a room: {room_dest}")
-                    
-                    # También enviar al emisor (sistema) si es diferente
-                    if system_indicativo.id != indicativo_found.id:
-                        room_emisor = f'indicativo_{system_indicativo.id}_event_{event_id}'
-                        socketio.emit('new_message', msg_dict, room=room_emisor)
-                        current_app.logger.info(f"[DEBUG] Mensaje enviado también a emisor room: {room_emisor}")
-                    
-                    current_app.logger.info(f"[DEBUG] ✅ Mensaje de servicio asignado enviado automáticamente para incidente #{incident.incident_number} a {indicativo_found.indicativo}")
-                else:
-                    current_app.logger.error(f"[DEBUG] ❌ No se encontró ningún indicativo del sistema para enviar el mensaje")
+                except Exception as e:
+                    current_app.logger.error(f"[DEBUG] ❌ Error al enviar mensaje de servicio asignado automáticamente: {e}")
+                    # No fallar la asignación si el mensaje no se puede enviar
+                    pass
+            else:
+                current_app.logger.info(f"[DEBUG] No se enviará mensaje automático porque no es un indicativo del evento (es texto libre)")
                 
-            except Exception as e:
-                current_app.logger.error(f"[DEBUG] ❌ Error al enviar mensaje de servicio asignado automáticamente: {e}")
-                # No fallar la asignación si el mensaje no se puede enviar
-                pass
-            
-            # Crear respuesta manual
+            # Crear respuesta manual (para ambos casos: indicativo del evento y texto libre)
             assignment_dict = {
                 'id': assignment_id,
                 'incident_id': incident.id,
@@ -886,7 +884,7 @@ def create_incident_assignment(event_id, incident_id):
             db.session.rollback()
             current_app.logger.error(f"Error al crear asignación con SQL directo: {e}")
             return jsonify({'status': 'error', 'message': f'Error al crear asignación: {str(e)}'}), 500
-            
+
     except Exception as e:
         current_app.logger.error(f"Error general en create_incident_assignment: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
