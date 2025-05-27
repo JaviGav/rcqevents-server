@@ -39,6 +39,65 @@
             color: #95a5a6;
             background-color: #f8f9fa; /* Un fondo ligeramente diferente */
         }
+        
+        /* Estilos para estados de incidentes */
+        .incident-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .incident-status:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .incident-status .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        
+        /* Colores por estado */
+        .status-pre-incidente {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .status-pre-incidente .status-dot {
+            background-color: #f39c12;
+        }
+        
+        .status-activo {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-activo .status-dot {
+            background-color: #e74c3c;
+        }
+        
+        .status-stand-by {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status-stand-by .status-dot {
+            background-color: #17a2b8;
+        }
+        
+        .status-solucionado {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-solucionado .status-dot {
+            background-color: #28a745;
+        }
     </style>
 </head>
 <body>
@@ -229,6 +288,45 @@
                 </div>
                 <button type="submit" style="background:#27ae60; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Guardar</button>
             </form>
+        </div>
+    </div>
+    
+    <!-- Modal de cambio rápido de estado -->
+    <div id="statusChangeModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:8px; max-width:400px; width:95vw; margin:40px auto; padding:20px; position:relative;">
+            <button id="closeStatusModal" style="position:absolute; top:10px; right:10px; background:#e74c3c; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:18px; cursor:pointer;">&times;</button>
+            <h2 id="statusModalTitle">Cambiar Estado del Incidente</h2>
+            <p id="statusModalIncidentInfo" style="color:#666; margin-bottom:20px;"></p>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button class="status-change-btn" data-status="pre-incidente" style="padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; background:#fff3cd; color:#856404; border:2px solid #ffeaa7;">
+                    <div style="display:flex; align-items:center;">
+                        <div style="width:10px; height:10px; border-radius:50%; background:#f39c12; margin-right:8px;"></div>
+                        Pre-incidente
+                    </div>
+                </button>
+                
+                <button class="status-change-btn" data-status="activo" style="padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; background:#f8d7da; color:#721c24; border:2px solid #f5c6cb;">
+                    <div style="display:flex; align-items:center;">
+                        <div style="width:10px; height:10px; border-radius:50%; background:#e74c3c; margin-right:8px;"></div>
+                        Activo
+                    </div>
+                </button>
+                
+                <button class="status-change-btn" data-status="stand-by" style="padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; background:#d1ecf1; color:#0c5460; border:2px solid #bee5eb;">
+                    <div style="display:flex; align-items:center;">
+                        <div style="width:10px; height:10px; border-radius:50%; background:#17a2b8; margin-right:8px;"></div>
+                        Stand-by
+                    </div>
+                </button>
+                
+                <button class="status-change-btn" data-status="solucionado" style="padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; background:#d4edda; color:#155724; border:2px solid #c3e6cb;">
+                    <div style="display:flex; align-items:center;">
+                        <div style="width:10px; height:10px; border-radius:50%; background:#28a745; margin-right:8px;"></div>
+                        Solucionado
+                    </div>
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -821,7 +919,18 @@ function renderIncidents(incidents) {
 
         row.insertCell().textContent = incident.incident_number;
         row.insertCell().textContent = incident.tipo;
-        row.insertCell().textContent = incident.estado;
+        
+        // Celda de estado con colores y clickable
+        const statusCell = row.insertCell();
+        const statusSpan = document.createElement('span');
+        statusSpan.className = `incident-status status-${incident.estado}`;
+        statusSpan.innerHTML = `<span class="status-dot"></span>${incident.estado}`;
+        statusSpan.style.cursor = 'pointer';
+        statusSpan.title = 'Clic para cambiar estado';
+        statusSpan.addEventListener('click', function() {
+            openStatusChangeModal(incident.id, incident.incident_number, incident.estado);
+        });
+        statusCell.appendChild(statusSpan);
         row.insertCell().textContent = incident.descripcion ? incident.descripcion.substring(0, 50) + (incident.descripcion.length > 50 ? '...' : '') : '-';
         row.insertCell().textContent = incident.reportado_por || '-';
         
@@ -882,6 +991,57 @@ async function loadIncidents() {
 
 // Event listener para el checkbox "Mostrar eliminados"
 document.getElementById('showDeletedIncidents').addEventListener('change', loadIncidents);
+
+// Variables para el modal de cambio de estado
+const statusChangeModal = document.getElementById('statusChangeModal');
+const closeStatusModal = document.getElementById('closeStatusModal');
+const statusModalTitle = document.getElementById('statusModalTitle');
+const statusModalIncidentInfo = document.getElementById('statusModalIncidentInfo');
+let currentIncidentForStatusChange = null;
+
+// Función para abrir el modal de cambio de estado
+function openStatusChangeModal(incidentId, incidentNumber, currentStatus) {
+    currentIncidentForStatusChange = incidentId;
+    statusModalTitle.textContent = `Cambiar Estado del Incidente #${incidentNumber}`;
+    statusModalIncidentInfo.textContent = `Estado actual: ${currentStatus}`;
+    statusChangeModal.style.display = 'flex';
+}
+
+// Cerrar modal de estado
+closeStatusModal.addEventListener('click', function() {
+    statusChangeModal.style.display = 'none';
+    currentIncidentForStatusChange = null;
+});
+
+// Event listeners para los botones de cambio de estado
+document.querySelectorAll('.status-change-btn').forEach(button => {
+    button.addEventListener('click', async function() {
+        const newStatus = this.dataset.status;
+        if (!currentIncidentForStatusChange) return;
+        
+        try {
+            const response = await fetch(`/events/${eventId}/incidents/${currentIncidentForStatusChange}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ estado: newStatus }),
+            });
+            
+            const result = await response.json();
+            if (response.ok && result.status === 'success') {
+                statusChangeModal.style.display = 'none';
+                currentIncidentForStatusChange = null;
+                loadIncidents(); // Recargar la lista para mostrar el nuevo estado
+            } else {
+                alert(`Error al cambiar estado: ${result.message || 'Error desconocido'}`);
+            }
+        } catch (error) {
+            console.error('Error al cambiar estado del incidente:', error);
+            alert('Error de red al intentar cambiar el estado del incidente.');
+        }
+    });
+});
 
 incidentForm.addEventListener('submit', async function(e) {
     e.preventDefault();
