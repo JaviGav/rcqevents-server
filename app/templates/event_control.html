@@ -1409,6 +1409,9 @@ function renderIncidents(incidents) {
                              data-assignment-name="${assignment.indicativo_nombre}" 
                              data-assignment-status="${assignment.estado_asignacion}" 
                              data-incident-id="${incident.id}"
+                             data-incident-number="${incident.incident_number}"
+                             data-incident-type="${incident.tipo}"
+                             data-incident-dorsal="${incident.dorsal || ''}"
                              style="display:inline-flex; align-items:center; margin:2px 0; padding:3px 6px; border-radius:12px; font-size:11px; background:${statusColors.bg}; color:${statusColors.text}; border:1px solid ${statusColors.border}; cursor:pointer; transition: all 0.2s ease;" 
                              title="Clic para cambiar estado de asignación"
                              onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)'"
@@ -1442,7 +1445,10 @@ function renderIncidents(incidents) {
             const assignmentName = this.dataset.assignmentName;
             const assignmentStatus = this.dataset.assignmentStatus;
             const incidentId = this.dataset.incidentId;
-            openQuickAssignmentStatusModal(assignmentId, assignmentName, assignmentStatus, incidentId);
+            const incidentNumber = this.dataset.incidentNumber;
+            const incidentType = this.dataset.incidentType;
+            const incidentDorsal = this.dataset.incidentDorsal;
+            openQuickAssignmentStatusModal(assignmentId, assignmentName, assignmentStatus, incidentId, incidentNumber, incidentType, incidentDorsal);
         });
     });
 }
@@ -2471,7 +2477,7 @@ applyCoordsBtn.addEventListener('click', async function() {
 });
 
 // Función para abrir el modal rápido de cambio de estado de asignación
-function openQuickAssignmentStatusModal(assignmentId, assignmentName, currentStatus, incidentId) {
+function openQuickAssignmentStatusModal(assignmentId, assignmentName, currentStatus, incidentId, incidentNumber, incidentType, incidentDorsal) {
     currentAssignmentForStatusChange = assignmentId;
     currentIncidentForAssignment = incidentId; // Para recargar después
     
@@ -2480,7 +2486,19 @@ function openQuickAssignmentStatusModal(assignmentId, assignmentName, currentSta
     const info = document.getElementById('quickAssignmentStatusInfo');
     
     title.textContent = 'Cambiar Estado de Asignación';
-    info.textContent = assignmentName; // Solo mostrar el nombre, sin el estado actual
+    
+    // Construir información del incidente
+    let incidentInfo = `Incidente #${incidentNumber} - ${incidentType}`;
+    
+    // Añadir dorsal si es asistencia médica y tiene dorsal
+    if (incidentType === '🚑 Asistencia Médica' && incidentDorsal && incidentDorsal.trim() !== '') {
+        incidentInfo += ` (Dorsal: ${incidentDorsal})`;
+    }
+    
+    incidentInfo += `\nAsignado a: ${assignmentName}`;
+    
+    info.textContent = incidentInfo;
+    info.style.whiteSpace = 'pre-line'; // Para que respete los saltos de línea
     
     // Resaltar el estado actual en los botones de forma mucho más prominente
     document.querySelectorAll('.quick-status-btn').forEach(btn => {
