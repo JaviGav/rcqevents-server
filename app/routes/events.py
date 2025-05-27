@@ -585,24 +585,26 @@ def create_incident_assignment(event_id, incident_id):
         now = datetime.utcnow()
         nuevo_estado_asignacion = data.get('estado_asignacion', 'pre-avisado')
         
-        # Determinar si es un indicativo (número) o un servicio (texto)
+        # Determinar si es un indicativo del evento (número) o texto libre
         indicativo_value = data['indicativo_id']
         
         try:
-            # Si es un número, es un indicativo
-            indicativo_id = int(indicativo_value)
-            servicio_nombre = None
+            # Si es un número, verificar si es un indicativo válido del evento
+            potential_id = int(indicativo_value)
+            # Verificar que el indicativo existe en este evento
+            indicativo_exists = Indicativo.query.filter_by(id=potential_id, event_id=event_id).first()
+            if indicativo_exists:
+                # Es un indicativo válido del evento
+                indicativo_id = potential_id
+                servicio_nombre = None
+            else:
+                # Es un número pero no corresponde a un indicativo del evento
+                # Tratarlo como texto libre
+                indicativo_id = -1  # Valor especial para texto libre
+                servicio_nombre = str(indicativo_value)
         except (ValueError, TypeError):
-            # Si no es un número, es un servicio
-            # Para servicios, usamos valores especiales negativos como ID
-            # y guardamos el nombre real en servicio_nombre
-            service_map = {
-                'CME': -1,
-                'GUB': -2, 
-                'Servicios Médicos': -3,
-                'Seguridad': -4
-            }
-            indicativo_id = service_map.get(str(indicativo_value), -999)  # -999 para servicios no mapeados
+            # No es un número, es texto libre (CME, GUB, nombres, etc.)
+            indicativo_id = -1  # Valor especial para texto libre
             servicio_nombre = str(indicativo_value)
 
         # Usar SQL directo para insertar la asignación
@@ -614,8 +616,13 @@ def create_incident_assignment(event_id, incident_id):
             existing_columns = [col[1] for col in columns_query]
             
             # Construir la consulta de inserción basada en las columnas existentes
-            base_columns = ['incident_id', 'indicativo_id', 'estado_asignacion', 'fecha_creacion_asignacion']
-            base_values = [incident.id, indicativo_id, nuevo_estado_asignacion, now]
+            base_columns = ['incident_id', 'estado_asignacion', 'fecha_creacion_asignacion']
+            base_values = [incident.id, nuevo_estado_asignacion, now]
+            
+            # Solo incluir indicativo_id si es un indicativo real del evento (ID positivo)
+            if indicativo_id > 0:
+                base_columns.append('indicativo_id')
+                base_values.append(indicativo_id)
             
             # Agregar servicio_nombre si la columna existe
             if 'servicio_nombre' in existing_columns and servicio_nombre:
@@ -655,7 +662,7 @@ def create_incident_assignment(event_id, incident_id):
                 'id': assignment_id,
                 'incident_id': incident.id,
                 'indicativo_id': indicativo_id if indicativo_id > 0 else None,
-                'servicio_nombre': servicio_nombre if indicativo_id < 0 else None,
+                'servicio_nombre': servicio_nombre if indicativo_id == -1 else None,
                 'estado_asignacion': nuevo_estado_asignacion,
                 'fecha_creacion_asignacion': now.strftime('%Y-%m-%d %H:%M:%S'),
             }
@@ -668,11 +675,11 @@ def create_incident_assignment(event_id, incident_id):
                     assignment_dict[fecha_col] = None
             
             # Determinar el nombre a mostrar
-            if indicativo_id < 0:
-                # Es un servicio
+            if indicativo_id == -1:
+                # Es texto libre (servicio, nombre, etc.)
                 assignment_dict['indicativo_nombre'] = servicio_nombre
             elif indicativo_id > 0:
-                # Es un indicativo real
+                # Es un indicativo real del evento
                 try:
                     indicativo = Indicativo.query.get(indicativo_id)
                     if indicativo:
