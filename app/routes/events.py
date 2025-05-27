@@ -391,6 +391,32 @@ def get_incident_address_only(event_id, incident_id):
         return jsonify({'status': 'error', 'message': 'El incidente no tiene coordenadas registradas.'}), 400
 
 # --- ASIGNACIONES DE INCIDENTES ---
+@bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments', methods=['GET'])
+def get_incident_assignments(event_id, incident_id):
+    """Obtener todas las asignaciones de un incidente"""
+    try:
+        # Verificar que el incidente existe y pertenece al evento
+        incident = Incident.query.filter_by(id=incident_id, event_id=event_id).first_or_404()
+        
+        # Obtener asignaciones con información del indicativo
+        assignments = db.session.query(IncidentAssignment, Indicativo).join(
+            Indicativo, IncidentAssignment.indicativo_id == Indicativo.id
+        ).filter(IncidentAssignment.incident_id == incident_id).all()
+        
+        assignments_data = []
+        for assignment, indicativo in assignments:
+            assignment_dict = assignment.to_dict()
+            assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
+            assignments_data.append(assignment_dict)
+        
+        return jsonify({
+            'status': 'success',
+            'assignments': assignments_data
+        })
+        
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments', methods=['POST'])
 def create_incident_assignment(event_id, incident_id):
     incident = Incident.query.filter_by(id=incident_id, event_id=event_id).first_or_404()
