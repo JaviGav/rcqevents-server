@@ -254,11 +254,8 @@ def get_assignment_display_name(assignment_data, event_id=None):
     indicativo_id = assignment_data.get('indicativo_id')
     servicio_nombre = assignment_data.get('servicio_nombre')
     
-    print(f"DEBUG get_assignment_display_name: assignment_id={assignment_id}, indicativo_id={indicativo_id}, servicio_nombre='{servicio_nombre}'")
-    
     # Si tenemos servicio_nombre, usarlo directamente
     if servicio_nombre:
-        print(f"DEBUG: Usando servicio_nombre directamente: '{servicio_nombre}'")
         return servicio_nombre
     
     # Si es un indicativo válido del evento (ID > 0), buscar su información
@@ -266,36 +263,25 @@ def get_assignment_display_name(assignment_data, event_id=None):
         try:
             indicativo = Indicativo.query.get(indicativo_id)
             if indicativo:
-                result = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
-                print(f"DEBUG: Usando indicativo del evento: '{result}'")
-                return result
+                return f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
             else:
-                result = f"ID: {indicativo_id}"
-                print(f"DEBUG: Indicativo no encontrado: '{result}'")
-                return result
+                return f"ID: {indicativo_id}"
         except:
-            result = f"ID: {indicativo_id}"
-            print(f"DEBUG: Error al buscar indicativo: '{result}'")
-            return result
+            return f"ID: {indicativo_id}"
     
     # Si indicativo_id es -1, significa que es texto libre pero servicio_nombre no está disponible
     if indicativo_id == -1:
-        print(f"DEBUG: Es texto libre (indicativo_id=-1), buscando en cache y BD...")
-        
         # Primero, verificar si tenemos el texto en el cache
         if assignment_id and assignment_id in assignment_text_cache:
-            cached_text = assignment_text_cache[assignment_id]
-            print(f"DEBUG: Encontrado en cache: '{cached_text}'")
-            return cached_text
+            return assignment_text_cache[assignment_id]
         
-        # Intentar recuperar el valor original desde la base de datos con más detalle
+        # Intentar recuperar el valor original desde la base de datos
         try:
             from sqlalchemy import text
             if assignment_id:
                 # Verificar qué columnas existen en la tabla
                 columns_query = db.session.execute(text("PRAGMA table_info(incident_assignments)")).fetchall()
                 existing_columns = [col[1] for col in columns_query]
-                print(f"DEBUG: Columnas existentes: {existing_columns}")
                 
                 # Si la columna servicio_nombre existe, intentar obtenerla
                 if 'servicio_nombre' in existing_columns:
@@ -307,7 +293,6 @@ def get_assignment_display_name(assignment_data, event_id=None):
                     if result and result[0]:
                         # Actualizar el cache para futuras consultas
                         assignment_text_cache[assignment_id] = result[0]
-                        print(f"DEBUG: Recuperado de BD servicio_nombre: '{result[0]}'")
                         return result[0]
                 
                 # Si llegamos aquí, es una asignación de texto libre pero no pudimos recuperar el texto
@@ -318,7 +303,6 @@ def get_assignment_display_name(assignment_data, event_id=None):
                 ).fetchone()
                 
                 if full_result:
-                    print(f"DEBUG: Resultado completo de BD: {full_result}")
                     # Buscar en todos los campos posibles
                     for i, col_info in enumerate(columns_query):
                         col_name = col_info[1]
@@ -326,31 +310,19 @@ def get_assignment_display_name(assignment_data, event_id=None):
                             value = full_result[i]
                             if value and isinstance(value, str) and value.strip():
                                 assignment_text_cache[assignment_id] = value
-                                print(f"DEBUG: Encontrado en columna {col_name}: '{value}'")
                                 return value
-                
-                # Si no encontramos nada específico, devolver un mensaje más descriptivo
-                result = f"Asignación #{assignment_id} (texto libre)"
-                print(f"DEBUG: No se encontró texto, devolviendo: '{result}'")
-                return result
                 
         except Exception as e:
             print(f"Error al recuperar nombre de asignación {assignment_id}: {e}")
         
         # Si tenemos el ID pero no pudimos recuperar el texto, intentar del cache global
         if assignment_id and assignment_id in assignment_text_cache:
-            cached_text = assignment_text_cache[assignment_id]
-            print(f"DEBUG: Último intento desde cache: '{cached_text}'")
-            return cached_text
+            return assignment_text_cache[assignment_id]
         
-        result = "Texto libre (no disponible)"
-        print(f"DEBUG: Fallback final: '{result}'")
-        return result
+        return "Texto libre (no disponible)"
     
     # Caso por defecto
-    result = "Asignación sin nombre"
-    print(f"DEBUG: Caso por defecto: '{result}'")
-    return result
+    return "Asignación sin nombre"
 
 def incident_to_dict(incident, fetch_address=False):
     # Usar SQL directo para cargar asignaciones para evitar problemas de esquema
@@ -738,7 +710,6 @@ def create_incident_assignment(event_id, incident_id):
             # Si es texto libre, SIEMPRE agregarlo al cache para preservarlo
             if indicativo_id == -1 and servicio_nombre:
                 assignment_text_cache[assignment_id] = servicio_nombre
-                print(f"Guardado en cache: assignment_id={assignment_id}, texto='{servicio_nombre}'")
             
             # Crear respuesta manual
             assignment_dict = {
