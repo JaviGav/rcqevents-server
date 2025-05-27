@@ -550,62 +550,209 @@ def get_incident_assignments(event_id, incident_id):
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments', methods=['POST'])
 def create_incident_assignment(event_id, incident_id):
-    incident = Incident.query.filter_by(id=incident_id, event_id=event_id).first_or_404()
-    data = request.get_json()
-    if not data or 'indicativo_id' not in data:
-        return jsonify({'status': 'error', 'message': 'indicativo_id es requerido'}), 400
-
-    now = datetime.utcnow()
-    nuevo_estado_asignacion = data.get('estado_asignacion', 'pre-avisado')
-    
-    # Determinar si es un indicativo (número) o un servicio (texto)
-    indicativo_value = data['indicativo_id']
-    
     try:
-        # Si es un número, es un indicativo
-        indicativo_id = int(indicativo_value)
-        servicio_nombre = None
-    except (ValueError, TypeError):
-        # Si no es un número, es un servicio
-        indicativo_id = None
-        servicio_nombre = str(indicativo_value)
+        incident = Incident.query.filter_by(id=incident_id, event_id=event_id).first_or_404()
+        data = request.get_json()
+        if not data or 'indicativo_id' not in data:
+            return jsonify({'status': 'error', 'message': 'indicativo_id es requerido'}), 400
 
-    assignment = IncidentAssignment(
-        incident_id=incident.id,
-        indicativo_id=indicativo_id,
-        servicio_nombre=servicio_nombre,
-        estado_asignacion=nuevo_estado_asignacion,
-        fecha_creacion_asignacion=now
-    )
+        now = datetime.utcnow()
+        nuevo_estado_asignacion = data.get('estado_asignacion', 'pre-avisado')
+        
+        # Determinar si es un indicativo (número) o un servicio (texto)
+        indicativo_value = data['indicativo_id']
+        
+        try:
+            # Si es un número, es un indicativo
+            indicativo_id = int(indicativo_value)
+            servicio_nombre = None
+        except (ValueError, TypeError):
+            # Si no es un número, es un servicio
+            indicativo_id = None
+            servicio_nombre = str(indicativo_value)
 
-    if nuevo_estado_asignacion == 'pre-avisado': assignment.fecha_pre_avisado_asig = now
-    elif nuevo_estado_asignacion == 'avisado': assignment.fecha_avisado_asig = now
-    elif nuevo_estado_asignacion == 'en camino': assignment.fecha_en_camino_asig = now
-    elif nuevo_estado_asignacion == 'en el lugar': assignment.fecha_en_lugar_asig = now
-    elif nuevo_estado_asignacion == 'finalizado': assignment.fecha_finalizado_asig = now
-    
-    db.session.add(assignment)
-    db.session.commit()
-    return jsonify({'status': 'success', 'message': 'Asignación creada', 'assignment': assignment.to_dict()}), 201
+        # Usar SQL directo para insertar la asignación
+        try:
+            from sqlalchemy import text
+            
+            # Verificar qué columnas existen en la tabla
+            columns_query = db.session.execute(text("PRAGMA table_info(incident_assignments)")).fetchall()
+            existing_columns = [col[1] for col in columns_query]
+            
+            # Construir la consulta de inserción basada en las columnas existentes
+            base_columns = ['incident_id', 'indicativo_id', 'estado_asignacion', 'fecha_creacion_asignacion']
+            base_values = [incident.id, indicativo_id, nuevo_estado_asignacion, now]
+            
+            # Agregar servicio_nombre si la columna existe
+            if 'servicio_nombre' in existing_columns and servicio_nombre:
+                base_columns.append('servicio_nombre')
+                base_values.append(servicio_nombre)
+            
+            # Agregar fecha de estado específica si la columna existe
+            estado_fecha_map = {
+                'pre-avisado': 'fecha_pre_avisado_asig',
+                'avisado': 'fecha_avisado_asig',
+                'en camino': 'fecha_en_camino_asig',
+                'en el lugar': 'fecha_en_lugar_asig',
+                'finalizado': 'fecha_finalizado_asig'
+            }
+            
+            if nuevo_estado_asignacion in estado_fecha_map:
+                fecha_column = estado_fecha_map[nuevo_estado_asignacion]
+                if fecha_column in existing_columns:
+                    base_columns.append(fecha_column)
+                    base_values.append(now)
+            
+            # Construir y ejecutar la consulta
+            columns_str = ', '.join(base_columns)
+            placeholders = ', '.join([':param' + str(i) for i in range(len(base_values))])
+            
+            insert_query = f"INSERT INTO incident_assignments ({columns_str}) VALUES ({placeholders})"
+            params = {f'param{i}': value for i, value in enumerate(base_values)}
+            
+            result = db.session.execute(text(insert_query), params)
+            db.session.commit()
+            
+            # Obtener el ID de la asignación creada
+            assignment_id = result.lastrowid
+            
+            # Crear respuesta manual
+            assignment_dict = {
+                'id': assignment_id,
+                'incident_id': incident.id,
+                'indicativo_id': indicativo_id,
+                'servicio_nombre': servicio_nombre,
+                'estado_asignacion': nuevo_estado_asignacion,
+                'fecha_creacion_asignacion': now.strftime('%Y-%m-%d %H:%M:%S'),
+            }
+            
+            # Agregar fechas de estado
+            for estado, fecha_col in estado_fecha_map.items():
+                if estado == nuevo_estado_asignacion and fecha_col in existing_columns:
+                    assignment_dict[fecha_col] = now.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    assignment_dict[fecha_col] = None
+            
+            # Determinar el nombre a mostrar
+            if servicio_nombre:
+                assignment_dict['indicativo_nombre'] = servicio_nombre
+            elif indicativo_id:
+                try:
+                    indicativo = Indicativo.query.get(indicativo_id)
+                    if indicativo:
+                        assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
+                    else:
+                        assignment_dict['indicativo_nombre'] = f"ID: {indicativo_id}"
+                except:
+                    assignment_dict['indicativo_nombre'] = f"ID: {indicativo_id}"
+            else:
+                assignment_dict['indicativo_nombre'] = "Asignación sin nombre"
+            
+            return jsonify({'status': 'success', 'message': 'Asignación creada', 'assignment': assignment_dict}), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error al crear asignación con SQL directo: {e}")
+            return jsonify({'status': 'error', 'message': f'Error al crear asignación: {str(e)}'}), 500
+            
+    except Exception as e:
+        print(f"Error general en create_incident_assignment: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments/<int:assignment_id>', methods=['PUT'])
 def update_incident_assignment(event_id, incident_id, assignment_id):
-    assignment = IncidentAssignment.query.filter_by(id=assignment_id, incident_id=incident_id).first_or_404()
-    data = request.get_json()
-    now = datetime.utcnow()
+    try:
+        data = request.get_json()
+        now = datetime.utcnow()
 
-    if 'estado_asignacion' in data and data['estado_asignacion'] != assignment.estado_asignacion:
-        nuevo_estado = data['estado_asignacion']
-        assignment.estado_asignacion = nuevo_estado
-        if nuevo_estado == 'pre-avisado': assignment.fecha_pre_avisado_asig = now
-        elif nuevo_estado == 'avisado': assignment.fecha_avisado_asig = now
-        elif nuevo_estado == 'en camino': assignment.fecha_en_camino_asig = now
-        elif nuevo_estado == 'en el lugar': assignment.fecha_en_lugar_asig = now
-        elif nuevo_estado == 'finalizado': assignment.fecha_finalizado_asig = now
-        # Considerar limpiar otras fechas si es necesario
-
-    db.session.commit()
-    return jsonify({'status': 'success', 'message': 'Asignación actualizada', 'assignment': assignment.to_dict()})
+        if 'estado_asignacion' in data:
+            nuevo_estado = data['estado_asignacion']
+            
+            # Usar SQL directo para actualizar
+            from sqlalchemy import text
+            
+            # Verificar qué columnas existen
+            columns_query = db.session.execute(text("PRAGMA table_info(incident_assignments)")).fetchall()
+            existing_columns = [col[1] for col in columns_query]
+            
+            # Actualizar estado
+            update_parts = ['estado_asignacion = :nuevo_estado']
+            params = {'nuevo_estado': nuevo_estado, 'assignment_id': assignment_id, 'incident_id': incident_id}
+            
+            # Agregar fecha de estado específica si la columna existe
+            estado_fecha_map = {
+                'pre-avisado': 'fecha_pre_avisado_asig',
+                'avisado': 'fecha_avisado_asig',
+                'en camino': 'fecha_en_camino_asig',
+                'en el lugar': 'fecha_en_lugar_asig',
+                'finalizado': 'fecha_finalizado_asig'
+            }
+            
+            if nuevo_estado in estado_fecha_map:
+                fecha_column = estado_fecha_map[nuevo_estado]
+                if fecha_column in existing_columns:
+                    update_parts.append(f'{fecha_column} = :fecha_estado')
+                    params['fecha_estado'] = now
+            
+            update_query = f"UPDATE incident_assignments SET {', '.join(update_parts)} WHERE id = :assignment_id AND incident_id = :incident_id"
+            db.session.execute(text(update_query), params)
+            db.session.commit()
+            
+            # Obtener la asignación actualizada usando SQL directo
+            assignment_query = db.session.execute(
+                text("SELECT * FROM incident_assignments WHERE id = :assignment_id AND incident_id = :incident_id"),
+                {'assignment_id': assignment_id, 'incident_id': incident_id}
+            ).fetchone()
+            
+            if assignment_query:
+                # Crear diccionario de respuesta
+                assignment_dict = {
+                    'id': assignment_query.id,
+                    'incident_id': assignment_query.incident_id,
+                    'indicativo_id': assignment_query.indicativo_id,
+                    'estado_asignacion': assignment_query.estado_asignacion,
+                    'fecha_creacion_asignacion': assignment_query.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if assignment_query.fecha_creacion_asignacion else None,
+                }
+                
+                # Agregar campos opcionales
+                try:
+                    assignment_dict['servicio_nombre'] = getattr(assignment_query, 'servicio_nombre', None)
+                except:
+                    assignment_dict['servicio_nombre'] = None
+                
+                # Agregar fechas de estado
+                for fecha_col in estado_fecha_map.values():
+                    try:
+                        value = getattr(assignment_query, fecha_col, None)
+                        assignment_dict[fecha_col] = value.strftime('%Y-%m-%d %H:%M:%S') if value else None
+                    except:
+                        assignment_dict[fecha_col] = None
+                
+                # Determinar el nombre a mostrar
+                if assignment_dict['servicio_nombre']:
+                    assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
+                elif assignment_dict['indicativo_id']:
+                    try:
+                        indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
+                        if indicativo:
+                            assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
+                        else:
+                            assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
+                    except:
+                        assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
+                else:
+                    assignment_dict['indicativo_nombre'] = "Asignación sin nombre"
+                
+                return jsonify({'status': 'success', 'message': 'Asignación actualizada', 'assignment': assignment_dict})
+            else:
+                return jsonify({'status': 'error', 'message': 'Asignación no encontrada después de actualizar'}), 404
+        else:
+            return jsonify({'status': 'error', 'message': 'No se proporcionaron datos para actualizar'}), 400
+            
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error en update_incident_assignment: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments/<int:assignment_id>', methods=['DELETE'])
 def delete_incident_assignment(event_id, incident_id, assignment_id):
