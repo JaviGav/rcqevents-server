@@ -12,6 +12,7 @@ class Event(db.Model):
     
     # Nueva columna para la clave foránea
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    zona_evento = db.Column(db.String(255), nullable=True) # Campo para la población/zona del evento
     
     # Relaciones
     indicativos = db.relationship('Indicativo', backref='evento', lazy=True)
@@ -25,7 +26,8 @@ class Event(db.Model):
             'nombre': self.nombre,
             'fecha': (fecha_madrid.strftime('%Y-%m-%d %H:%M:%S') if fecha_madrid else None),
             'user_id': self.user_id,
-            'activo': self.activo
+            'activo': self.activo,
+            'zona_evento': self.zona_evento
         }
         # Si quieres incluir datos del organizador (User) aquí, puedes hacerlo si la relación está cargada
         # if self.organizer:
