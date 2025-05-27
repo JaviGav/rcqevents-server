@@ -244,48 +244,59 @@ def update_incident_address(incident):
 # Cache temporal para mantener el texto libre de asignaciones cuando servicio_nombre no está disponible
 # Formato: {assignment_id: texto_libre}
 assignment_text_cache = {}
+cache_loaded = False
 
 def load_assignment_text_cache():
     """
     Carga el cache de texto libre desde la base de datos al inicio del servidor.
     Esto es útil cuando la columna servicio_nombre existe en el servidor pero no localmente.
     """
+    global cache_loaded
+    if cache_loaded:
+        return
+        
     try:
         from sqlalchemy import text
         
         # Verificar qué columnas existen en la tabla
         columns_query = db.session.execute(text("PRAGMA table_info(incident_assignments)")).fetchall()
         existing_columns = [col[1] for col in columns_query]
+        print(f"[CACHE] Columnas disponibles: {existing_columns}")
         
         # Si la columna servicio_nombre existe, cargar todas las asignaciones de texto libre
         if 'servicio_nombre' in existing_columns:
+            print("[CACHE] Columna servicio_nombre encontrada, cargando asignaciones...")
             results = db.session.execute(
                 text("SELECT id, servicio_nombre FROM incident_assignments WHERE indicativo_id = -1 AND servicio_nombre IS NOT NULL")
             ).fetchall()
+            
+            print(f"[CACHE] Encontradas {len(results)} asignaciones de texto libre en BD")
             
             for result in results:
                 assignment_id, servicio_nombre = result
                 if servicio_nombre and servicio_nombre.strip():
                     assignment_text_cache[assignment_id] = servicio_nombre
+                    print(f"[CACHE] Cargado: ID={assignment_id}, texto='{servicio_nombre}'")
             
-            print(f"[CACHE] Cargadas {len(assignment_text_cache)} asignaciones de texto libre al cache")
+            print(f"[CACHE] Total cargadas {len(assignment_text_cache)} asignaciones al cache")
         else:
             print("[CACHE] Columna servicio_nombre no existe, cache iniciado vacío")
             
+        cache_loaded = True
+            
     except Exception as e:
         print(f"[CACHE] Error al cargar cache inicial: {e}")
-
-# Cargar el cache al importar el módulo
-try:
-    load_assignment_text_cache()
-except:
-    pass  # Si falla, continuar sin cache inicial
+        import traceback
+        traceback.print_exc()
 
 def get_assignment_display_name(assignment_data, event_id=None):
     """
     Determina el nombre a mostrar para una asignación de manera robusta.
     Maneja casos donde servicio_nombre puede no estar disponible por problemas de esquema.
     """
+    # Cargar cache si no se ha hecho aún
+    load_assignment_text_cache()
+    
     assignment_id = assignment_data.get('id')
     indicativo_id = assignment_data.get('indicativo_id')
     servicio_nombre = assignment_data.get('servicio_nombre')
@@ -307,9 +318,15 @@ def get_assignment_display_name(assignment_data, event_id=None):
     
     # Si indicativo_id es -1, significa que es texto libre
     if indicativo_id == -1:
+        print(f"[DEBUG] Procesando texto libre para assignment_id={assignment_id}")
+        
         # Primero, verificar si tenemos el texto en el cache
         if assignment_id and assignment_id in assignment_text_cache:
-            return assignment_text_cache[assignment_id]
+            cached_text = assignment_text_cache[assignment_id]
+            print(f"[DEBUG] Encontrado en cache: '{cached_text}'")
+            return cached_text
+        
+        print(f"[DEBUG] No encontrado en cache, buscando en BD...")
         
         # Intentar recuperar el valor original desde la base de datos
         try:
@@ -321,6 +338,7 @@ def get_assignment_display_name(assignment_data, event_id=None):
                 
                 # Si la columna servicio_nombre existe, intentar obtenerla
                 if 'servicio_nombre' in existing_columns:
+                    print(f"[DEBUG] Columna servicio_nombre existe, consultando BD...")
                     result = db.session.execute(
                         text("SELECT servicio_nombre FROM incident_assignments WHERE id = :assignment_id"),
                         {"assignment_id": assignment_id}
@@ -329,33 +347,19 @@ def get_assignment_display_name(assignment_data, event_id=None):
                     if result and result[0]:
                         # Actualizar el cache para futuras consultas
                         assignment_text_cache[assignment_id] = result[0]
+                        print(f"[DEBUG] Recuperado de BD: '{result[0]}'")
                         return result[0]
+                    else:
+                        print(f"[DEBUG] No se encontró servicio_nombre en BD para ID {assignment_id}")
+                else:
+                    print(f"[DEBUG] Columna servicio_nombre no existe")
                 
                 # Si no existe la columna servicio_nombre, buscar en el cache persistente
                 # o devolver un mensaje más útil
                 if assignment_id in assignment_text_cache:
-                    return assignment_text_cache[assignment_id]
-                
-                # Como último recurso, intentar obtener información de otras fuentes
-                # Buscar en toda la fila por si hay datos en otras columnas
-                try:
-                    full_result = db.session.execute(
-                        text("SELECT * FROM incident_assignments WHERE id = :assignment_id"),
-                        {"assignment_id": assignment_id}
-                    ).fetchone()
-                    
-                    if full_result:
-                        # Buscar en todos los campos posibles que puedan contener texto
-                        for i, col_info in enumerate(columns_query):
-                            col_name = col_info[1]
-                            if col_name in ['servicio_nombre', 'asignado_a', 'nombre_servicio'] and i < len(full_result):
-                                value = full_result[i]
-                                if value and isinstance(value, str) and value.strip():
-                                    assignment_text_cache[assignment_id] = value
-                                    return value
-                except:
-                    pass
-                
+                    cached_text = assignment_text_cache[assignment_id]
+                    print(f"[DEBUG] Segundo intento en cache exitoso: '{cached_text}'")
+                    return cached_text
         except Exception as e:
             print(f"Error al recuperar nombre de asignación {assignment_id}: {e}")
         
