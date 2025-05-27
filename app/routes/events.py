@@ -58,7 +58,12 @@ def create_event():
             except ValueError:
                 return jsonify({'status': 'error', 'message': 'Formato de fecha inválido. Use: YYYY-MM-DD HH:MM:SS o YYYY-MM-DDTHH:MM'}), 400
         # (Temporalmente) asigno un user_id fijo (por ejemplo, 1) para pruebas
-        evento = Event(nombre=data['nombre'], fecha=fecha, user_id=1)
+        evento = Event(
+            nombre=data['nombre'], 
+            fecha=fecha, 
+            user_id=1, # (Temporalmente) asigno un user_id fijo
+            zona_evento=data.get('zona_evento') # Añadir zona_evento
+        )
         db.session.add(evento)
         db.session.commit()
         return jsonify({'status': 'success', 'message': 'Evento creado exitosamente', 'event': evento.to_dict()}), 201
@@ -83,6 +88,9 @@ def update_event(event_id):
         
         if 'fecha' in data:
             event.fecha = datetime.strptime(data['fecha'], '%Y-%m-%d %H:%M:%S')
+        
+        if 'zona_evento' in data: # Añadir manejo para zona_evento
+            event.zona_evento = data['zona_evento']
         
         db.session.commit()
         
@@ -178,17 +186,12 @@ def delete_indicativo(event_id, indicativo_id):
     db.session.commit()
     return jsonify({'status': 'success', 'message': 'Indicativo eliminado'})
 
-@bp.route('/<int:event_id>')
-def event_detail(event_id):
-    event = Event.query.get_or_404(event_id)
-    return render_template('event_detail.html', event=event)
-
 @bp.route('/<int:event_id>/control')
 def event_control(event_id):
     event = Event.query.get_or_404(event_id)
     indicativos_obj = Indicativo.query.filter_by(event_id=event_id).all()
     indicativos_list_of_dicts = [ind.to_dict() for ind in indicativos_obj]
-    return render_template('event_control.html', event=event, indicativos=indicativos_list_of_dicts)
+    return render_template('event_control.html', event=event.to_dict(), indicativos=indicativos_list_of_dicts)
 
 @bp.route('/<int:event_id>/callsigns')
 def event_callsigns(event_id):
@@ -293,10 +296,10 @@ def create_incident(event_id):
         patologia=data.get('patologia'),
         fecha_creacion=now
     )
-    if nuevo_estado == 'pre-activado': incident.fecha_pre_activado = now
+    if nuevo_estado == 'pre-incidente': incident.fecha_pre_activado = now
     elif nuevo_estado == 'activo': incident.fecha_activado = now
     elif nuevo_estado == 'stand-by': incident.fecha_stand_by = now
-    elif nuevo_estado == 'finalizado': incident.fecha_finalizado = now
+    elif nuevo_estado == 'solucionado': incident.fecha_finalizado = now
 
     db.session.add(incident)
     db.session.commit()
@@ -316,13 +319,14 @@ def update_incident(event_id, incident_id):
 
     if 'estado' in data and data['estado'] != incident.estado:
         nuevo_estado = data['estado']
-        if nuevo_estado == 'pre-activado': incident.fecha_pre_activado = now
+        if nuevo_estado == 'pre-incidente': incident.fecha_pre_activado = now
         elif nuevo_estado == 'activo': incident.fecha_activado = now
         elif nuevo_estado == 'stand-by': incident.fecha_stand_by = now
-        elif nuevo_estado == 'finalizado': incident.fecha_finalizado = now
-        # Aquí podrías querer limpiar las otras fechas de estado si la lógica lo requiere
-        # Por ejemplo, si pasa de 'activo' a 'finalizado', ¿fecha_activado debe permanecer o limpiarse?
-        # Por ahora, solo se añade la nueva fecha.
+        elif nuevo_estado == 'solucionado': incident.fecha_finalizado = now
+        # Considerar si se deben limpiar otras fechas de estado al cambiar.
+        # Por ejemplo, si pasa de 'activo' a 'finalizado', ¿fecha_activado debe permanecer?
+        # Por ahora, solo se añade/actualiza la fecha del nuevo estado.
+        # El campo incident.estado se actualizará con setattr más abajo.
 
     for field in ['estado', 'reportado_por', 'tipo', 'descripcion', 'lat', 'lng', 'dorsal', 'patologia']:
         if field in data:
@@ -348,6 +352,20 @@ def restore_incident(event_id, incident_id):
     incident.deleted_at = None
     db.session.commit()
     return jsonify({'status': 'success', 'message': 'Incidente restaurado', 'incident': incident_to_dict(incident)})
+
+@bp.route('/<int:event_id>/incidents/<int:incident_id>/get_address_only', methods=['GET'])
+def get_incident_address_only(event_id, incident_id):
+    incident = Incident.query.filter_by(event_id=event_id, id=incident_id, is_deleted=False).first_or_404(
+        description='Incidente no encontrado.'
+    )
+    if incident.lat is not None and incident.lng is not None:
+        address = get_address_from_coords(incident.lat, incident.lng)
+        if address:
+            return jsonify({'status': 'success', 'address': address})
+        else:
+            return jsonify({'status': 'error', 'message': 'No se pudo obtener la dirección para las coordenadas.'}), 404 # O 200 con mensaje de error
+    else:
+        return jsonify({'status': 'error', 'message': 'El incidente no tiene coordenadas registradas.'}), 400
 
 # --- ASIGNACIONES DE INCIDENTES ---
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments', methods=['POST'])

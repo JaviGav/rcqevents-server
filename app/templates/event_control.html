@@ -236,6 +236,8 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
 const eventId = {{ event.id }};
+const eventZona = "{{ event.zona_evento | default('') }}"; // Leer zona_evento del evento
+
 const indicativoKey = `rcq_indicativo_${eventId}`;
 let indicativoId = localStorage.getItem(indicativoKey) || '';
 const indicativoSelect = document.getElementById('indicativoSelect');
@@ -822,8 +824,12 @@ function renderIncidents(incidents) {
         row.insertCell().textContent = incident.reportado_por || '-';
         
         const locCell = row.insertCell();
+        locCell.style.minWidth = '200px'; // Para dar espacio a la dirección
         if (incident.lat && incident.lng) {
-            locCell.innerHTML = `<a href="https://maps.google.com/?q=${incident.lat},${incident.lng}" target="_blank" title="Ver en mapa">${parseFloat(incident.lat).toFixed(4)}, ${parseFloat(incident.lng).toFixed(4)}</a>`;
+            const gmapsLink = `<a href="https://maps.google.com/?q=${incident.lat},${incident.lng}" target="_blank" title="Ver en mapa">${parseFloat(incident.lat).toFixed(4)}, ${parseFloat(incident.lng).toFixed(4)}</a>`;
+            const addressPlaceholderId = `address-placeholder-${incident.id}`;
+            const loadAddressBtn = `<span id="${addressPlaceholderId}" class="load-address-btn" data-incident-id="${incident.id}" style="cursor:pointer; color:blue; text-decoration:underline; margin-left:5px;">🔎</span>`;
+            locCell.innerHTML = `${gmapsLink} ${loadAddressBtn}`;
         } else {
             locCell.textContent = '-';
         }
@@ -963,25 +969,28 @@ document.getElementById('incidentsTableBody').addEventListener('click', async fu
         const incidentId = e.target.dataset.id;
         openIncidentModalForEdit(incidentId);
     }
-    // Aquí se pueden añadir más 'else if' para otros botones como restaurar
-    else if (e.target.classList.contains('restore-incident-btn')) {
+    // Botón de Cargar Dirección en la tabla
+    else if (e.target.classList.contains('load-address-btn')) {
         const incidentId = e.target.dataset.id;
-        if (confirm(`¿Estás seguro de que quieres restaurar el incidente ID ${incidentId}?`)) {
-            try {
-                const response = await fetch(`/events/${eventId}/incidents/${incidentId}/restore`, {
-                    method: 'POST',
-                });
-                const result = await response.json();
-                if (response.ok && result.status === 'success') {
-                    alert('Incidente restaurado exitosamente.');
-                    loadIncidents(); // Recargar la lista
-                } else {
-                    alert(`Error al restaurar incidente: ${result.message || 'Error desconocido'}`);
-                }
-            } catch (error) {
-                console.error('Error de red al restaurar incidente:', error);
-                alert('Error de red al intentar restaurar el incidente.');
+        const placeholderSpan = e.target; // El span en el que se hizo clic
+        placeholderSpan.textContent = 'Cargando...'; // Feedback visual
+        placeholderSpan.style.cursor = 'default';
+        placeholderSpan.style.color = 'inherit';
+        placeholderSpan.style.textDecoration = 'none';
+        placeholderSpan.classList.remove('load-address-btn'); // Evitar múltiples clics
+
+        try {
+            const response = await fetch(`/events/${eventId}/incidents/${incidentId}/get_address_only`);
+            const result = await response.json();
+            if (response.ok && result.status === 'success') {
+                placeholderSpan.textContent = result.address;
+            } else {
+                placeholderSpan.textContent = 'Error al cargar dirección';
+                console.error('Error al obtener dirección:', result.message);
             }
+        } catch (error) {
+            placeholderSpan.textContent = 'Error de red';
+            console.error('Error de red al obtener dirección:', error);
         }
     }
 });
@@ -995,9 +1004,16 @@ incidentSearchAddressBtn.addEventListener('click', async function() {
     const address = incidentAddressSearchInput.value.trim();
     if (!address) return alert('Por favor, introduce una dirección para buscar.');
 
+    let searchQuery = address;
+    if (eventZona) {
+        searchQuery += ", " + eventZona; // Añadir la zona del evento a la búsqueda para dar contexto
+    }
+
     try {
-        const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
-        const response = await fetch(searchUrl, { headers: { 'User-Agent': 'RCQEventsClient/1.0' } }); // Cambia el User-Agent
+        const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`;
+        // const response = await fetch(searchUrl, { headers: { 'User-Agent': 'RCQEventsClient/1.0' } }); // Cambia el User-Agent
+        // Para evitar problemas de CORS si Nominatim es estricto, o para simplificar, si el navegador no bloquea por User-Agent:
+        const response = await fetch(searchUrl);
         if (!response.ok) throw new Error(`Error HTTP de Nominatim: ${response.status}`);
         const results = await response.json();
 
