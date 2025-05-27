@@ -1718,13 +1718,7 @@ document.addEventListener('click', async function(e) {
     if (e.target.classList.contains('update-assignment-btn')) {
         const assignmentId = e.target.dataset.assignmentId;
         
-        // Buscar la asignación en las asignaciones actuales para obtener datos
-        const currentAssignmentsDiv = document.getElementById('currentAssignments');
-        const assignmentElement = e.target.closest('div');
-        const indicativoNombre = assignmentElement.querySelector('strong').textContent;
-        
-        // Obtener el estado actual de la asignación
-        // Necesitamos hacer una llamada para obtener los datos completos
+        // Obtener el estado actual de la asignación directamente desde la API
         try {
             const response = await fetch(`/events/${eventId}/incidents/${currentIncidentForAssignment}/assignments`);
             const result = await response.json();
@@ -1733,7 +1727,11 @@ document.addEventListener('click', async function(e) {
                 const assignment = result.assignments.find(a => a.id == assignmentId);
                 if (assignment) {
                     openAssignmentStatusModal(assignmentId, assignment.indicativo_nombre, assignment.estado_asignacion);
+                } else {
+                    alert('No se pudo encontrar la asignación.');
                 }
+            } else {
+                alert('Error al cargar datos de asignaciones.');
             }
         } catch (error) {
             console.error('Error al obtener datos de asignación:', error);
