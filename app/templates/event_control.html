@@ -93,6 +93,145 @@
         .status-solucionado .status-dot {
             background-color: #28a745;
         }
+        
+        /* Clases comunes para modales de cambio de estado */
+        .status-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.4);
+            z-index: 2000;
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+        
+        .status-modal-content {
+            background: #fff;
+            border-radius: 8px;
+            max-width: 300px;
+            width: 95vw;
+            margin: auto;
+            padding: 15px;
+            position: relative;
+        }
+        
+        .status-modal-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #e74c3c;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .status-modal-title {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .status-modal-info {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 13px;
+            white-space: pre-line;
+        }
+        
+        .status-buttons-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .status-btn {
+            padding: 10px 6px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            text-align: center;
+            font-size: 11px;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .status-btn:hover {
+            transform: scale(1.02);
+        }
+        
+        /* Colores específicos para estados de incidente */
+        .status-btn[data-status="pre-incidente"] {
+            background: #fff3cd;
+            color: #856404;
+            border-color: #ffeaa7;
+        }
+        
+        .status-btn[data-status="activo"] {
+            background: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        
+        .status-btn[data-status="stand-by"] {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-color: #bee5eb;
+        }
+        
+        .status-btn[data-status="solucionado"] {
+            background: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        
+        /* Colores específicos para estados de asignación */
+        .status-btn[data-status="pre-avisado"] {
+            background: #fff3cd;
+            color: #856404;
+            border-color: #ffeaa7;
+        }
+        
+        .status-btn[data-status="avisado"] {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-color: #bee5eb;
+        }
+        
+        .status-btn[data-status="en camino"] {
+            background: #e2e3e5;
+            color: #383d41;
+            border-color: #d6d8db;
+        }
+        
+        .status-btn[data-status="en el lugar"] {
+            background: #cce5ff;
+            color: #004085;
+            border-color: #99d6ff;
+        }
+        
+        .status-btn[data-status="finalizado"] {
+            background: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        
+        /* Estado activo/resaltado */
+        .status-btn.current-status {
+            border-width: 4px !important;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3), inset 0 0 0 2px rgba(255,255,255,0.8) !important;
+            transform: scale(1.08) !important;
+            font-weight: 900 !important;
+            position: relative;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
@@ -367,29 +506,29 @@
     </div>
     
     <!-- Modal de cambio rápido de estado -->
-    <div id="statusChangeModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:2000; overflow-y:auto; padding:20px 0;">
-        <div style="background:#fff; border-radius:8px; max-width:280px; width:95vw; margin:auto; padding:12px; position:relative;">
-            <button id="closeStatusModal" style="position:absolute; top:6px; right:6px; background:#e74c3c; color:#fff; border:none; border-radius:50%; width:24px; height:24px; font-size:14px; cursor:pointer;">&times;</button>
-            <h4 id="statusModalTitle" style="margin:0 0 6px 0; font-size:14px; font-weight:bold;">Cambiar Estado</h4>
-            <p id="statusModalIncidentInfo" style="color:#666; margin-bottom:10px; font-size:12px;"></p>
+    <div id="statusChangeModal" class="status-modal">
+        <div class="status-modal-content">
+            <button id="closeStatusModal" class="status-modal-close">&times;</button>
+            <h4 id="statusModalTitle" class="status-modal-title">Cambiar Estado del Incidente</h4>
+            <p id="statusModalIncidentInfo" class="status-modal-info"></p>
             
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
-                <button class="status-change-btn" data-status="pre-incidente" style="padding:8px 4px; border:none; border-radius:4px; cursor:pointer; font-weight:bold; background:#fff3cd; color:#856404; border:1px solid #ffeaa7; font-size:10px; text-align:center;">
+            <div class="status-buttons-grid">
+                <button class="status-btn status-change-btn" data-status="pre-incidente">
                     <div>🟡</div>
                     <div>Pre-incidente</div>
                 </button>
                 
-                <button class="status-change-btn" data-status="activo" style="padding:8px 4px; border:none; border-radius:4px; cursor:pointer; font-weight:bold; background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; font-size:10px; text-align:center;">
+                <button class="status-btn status-change-btn" data-status="activo">
                     <div>🔴</div>
                     <div>Activo</div>
                 </button>
                 
-                <button class="status-change-btn" data-status="stand-by" style="padding:8px 4px; border:none; border-radius:4px; cursor:pointer; font-weight:bold; background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb; font-size:10px; text-align:center;">
+                <button class="status-btn status-change-btn" data-status="stand-by">
                     <div>🔵</div>
                     <div>Stand-by</div>
                 </button>
                 
-                <button class="status-change-btn" data-status="solucionado" style="padding:8px 4px; border:none; border-radius:4px; cursor:pointer; font-weight:bold; background:#d4edda; color:#155724; border:1px solid #c3e6cb; font-size:10px; text-align:center;">
+                <button class="status-btn status-change-btn" data-status="solucionado">
                     <div>🟢</div>
                     <div>Solucionado</div>
                 </button>
@@ -1596,10 +1735,50 @@ const assignmentStatusModalInfo = document.getElementById('assignmentStatusModal
 let currentAssignmentForStatusChange = null;
 
 // Función para abrir el modal de cambio de estado
-function openStatusChangeModal(incidentId, incidentNumber, currentStatus) {
+async function openStatusChangeModal(incidentId, incidentNumber, currentStatus) {
     currentIncidentForStatusChange = incidentId;
-    statusModalTitle.textContent = `Cambiar Estado del Incidente #${incidentNumber}`;
-    statusModalIncidentInfo.textContent = `Estado actual: ${currentStatus}`;
+    
+    try {
+        // Obtener datos del incidente para mostrar información completa
+        const response = await fetch(`/events/${eventId}/incidents/${incidentId}`);
+        if (response.ok) {
+            const result = await response.json();
+            if (result.status === 'success' && result.incident) {
+                const incident = result.incident;
+                
+                // Construir información del incidente
+                let incidentInfo = `Incidente #${incident.incident_number} - ${incident.tipo}`;
+                
+                // Añadir dorsal si es asistencia médica y tiene dorsal
+                if (incident.tipo === '🚑 Asistencia Médica' && incident.dorsal && incident.dorsal.trim() !== '') {
+                    incidentInfo += ` (Dorsal: ${incident.dorsal})`;
+                }
+                
+                statusModalIncidentInfo.textContent = incidentInfo;
+            } else {
+                // Fallback si no se puede obtener la información completa
+                statusModalIncidentInfo.textContent = `Incidente #${incidentNumber}`;
+            }
+        } else {
+            // Fallback si hay error en la petición
+            statusModalIncidentInfo.textContent = `Incidente #${incidentNumber}`;
+        }
+    } catch (error) {
+        console.error('Error al obtener información del incidente:', error);
+        // Fallback si hay error de red
+        statusModalIncidentInfo.textContent = `Incidente #${incidentNumber}`;
+    }
+    
+    // Resaltar el estado actual en los botones
+    document.querySelectorAll('.status-change-btn').forEach(btn => {
+        const btnStatus = btn.dataset.status;
+        if (btnStatus === currentStatus) {
+            btn.classList.add('current-status');
+        } else {
+            btn.classList.remove('current-status');
+        }
+    });
+    
     statusChangeModal.style.display = 'flex';
 }
 
