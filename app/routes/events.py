@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, jsonify, request, render_template, current_app
 from app.models.event import Event
 from app.models.user import User
 from app.extensions import db
@@ -227,10 +227,10 @@ def get_address_from_coords(lat, lng):
             return display_address if display_address else data.get('display_name')
         return data.get('display_name') # Fallback al display_name completo
     except requests.exceptions.RequestException as e:
-        print(f"Error en geocodificación inversa: {e}")
+        current_app.logger.error(f"Error en geocodificación inversa: {e}")
         return None
     except Exception as e:
-        print(f"Error inesperado en geocodificación inversa: {e}")
+        current_app.logger.error(f"Error inesperado en geocodificación inversa: {e}")
         return None
 
 def update_incident_address(incident):
@@ -261,31 +261,31 @@ def load_assignment_text_cache():
         # Verificar qué columnas existen en la tabla
         columns_query = db.session.execute(text("PRAGMA table_info(incident_assignments)")).fetchall()
         existing_columns = [col[1] for col in columns_query]
-        print(f"[CACHE] Columnas disponibles: {existing_columns}")
+        current_app.logger.info(f"[CACHE] Columnas disponibles: {existing_columns}")
         
         # Si la columna servicio_nombre existe, cargar todas las asignaciones de texto libre
         if 'servicio_nombre' in existing_columns:
-            print("[CACHE] Columna servicio_nombre encontrada, cargando asignaciones...")
+            current_app.logger.info("[CACHE] Columna servicio_nombre encontrada, cargando asignaciones...")
             results = db.session.execute(
                 text("SELECT id, servicio_nombre FROM incident_assignments WHERE indicativo_id = -1 AND servicio_nombre IS NOT NULL")
             ).fetchall()
             
-            print(f"[CACHE] Encontradas {len(results)} asignaciones de texto libre en BD")
+            current_app.logger.info(f"[CACHE] Encontradas {len(results)} asignaciones de texto libre en BD")
             
             for result in results:
                 assignment_id, servicio_nombre = result
                 if servicio_nombre and servicio_nombre.strip():
                     assignment_text_cache[assignment_id] = servicio_nombre
-                    print(f"[CACHE] Cargado: ID={assignment_id}, texto='{servicio_nombre}'")
+                    current_app.logger.info(f"[CACHE] Cargado: ID={assignment_id}, texto='{servicio_nombre}'")
             
-            print(f"[CACHE] Total cargadas {len(assignment_text_cache)} asignaciones al cache")
+            current_app.logger.info(f"[CACHE] Total cargadas {len(assignment_text_cache)} asignaciones al cache")
         else:
-            print("[CACHE] Columna servicio_nombre no existe, cache iniciado vacío")
+            current_app.logger.info("[CACHE] Columna servicio_nombre no existe, cache iniciado vacío")
             
         cache_loaded = True
             
     except Exception as e:
-        print(f"[CACHE] Error al cargar cache inicial: {e}")
+        current_app.logger.error(f"[CACHE] Error al cargar cache inicial: {e}")
         import traceback
         traceback.print_exc()
 
@@ -318,15 +318,15 @@ def get_assignment_display_name(assignment_data, event_id=None):
     
     # Si indicativo_id es -1, significa que es texto libre
     if indicativo_id == -1:
-        print(f"[DEBUG] Procesando texto libre para assignment_id={assignment_id}")
+        current_app.logger.info(f"[DEBUG] Procesando texto libre para assignment_id={assignment_id}")
         
         # Primero, verificar si tenemos el texto en el cache
         if assignment_id and assignment_id in assignment_text_cache:
             cached_text = assignment_text_cache[assignment_id]
-            print(f"[DEBUG] Encontrado en cache: '{cached_text}'")
+            current_app.logger.info(f"[DEBUG] Encontrado en cache: '{cached_text}'")
             return cached_text
         
-        print(f"[DEBUG] No encontrado en cache, buscando en BD...")
+        current_app.logger.info(f"[DEBUG] No encontrado en cache, buscando en BD...")
         
         # Intentar recuperar el valor original desde la base de datos
         try:
@@ -338,7 +338,7 @@ def get_assignment_display_name(assignment_data, event_id=None):
                 
                 # Si la columna servicio_nombre existe, intentar obtenerla
                 if 'servicio_nombre' in existing_columns:
-                    print(f"[DEBUG] Columna servicio_nombre existe, consultando BD...")
+                    current_app.logger.info(f"[DEBUG] Columna servicio_nombre existe, consultando BD...")
                     result = db.session.execute(
                         text("SELECT servicio_nombre FROM incident_assignments WHERE id = :assignment_id"),
                         {"assignment_id": assignment_id}
@@ -347,21 +347,21 @@ def get_assignment_display_name(assignment_data, event_id=None):
                     if result and result[0]:
                         # Actualizar el cache para futuras consultas
                         assignment_text_cache[assignment_id] = result[0]
-                        print(f"[DEBUG] Recuperado de BD: '{result[0]}'")
+                        current_app.logger.info(f"[DEBUG] Recuperado de BD: '{result[0]}'")
                         return result[0]
                     else:
-                        print(f"[DEBUG] No se encontró servicio_nombre en BD para ID {assignment_id}")
+                        current_app.logger.info(f"[DEBUG] No se encontró servicio_nombre en BD para ID {assignment_id}")
                 else:
-                    print(f"[DEBUG] Columna servicio_nombre no existe")
+                    current_app.logger.info(f"[DEBUG] Columna servicio_nombre no existe")
                 
                 # Si no existe la columna servicio_nombre, buscar en el cache persistente
                 # o devolver un mensaje más útil
                 if assignment_id in assignment_text_cache:
                     cached_text = assignment_text_cache[assignment_id]
-                    print(f"[DEBUG] Segundo intento en cache exitoso: '{cached_text}'")
+                    current_app.logger.info(f"[DEBUG] Segundo intento en cache exitoso: '{cached_text}'")
                     return cached_text
         except Exception as e:
-            print(f"Error al recuperar nombre de asignación {assignment_id}: {e}")
+            current_app.logger.error(f"Error al recuperar nombre de asignación {assignment_id}: {e}")
         
         # Si llegamos aquí, es texto libre pero no pudimos recuperarlo
         # Devolver un mensaje que indique que es texto personalizado
@@ -415,7 +415,7 @@ def incident_to_dict(incident, fetch_address=False):
             
             assignments_data.append(assignment_dict)
     except Exception as e:
-        print(f"Error al cargar asignaciones para incidente {incident.id}: {e}")
+        current_app.logger.error(f"Error al cargar asignaciones para incidente {incident.id}: {e}")
     
     data = {
         'id': incident.id,
@@ -474,7 +474,7 @@ def assignment_to_dict(a, event_id=None):
         
         return assignment_dict
     except Exception as e:
-        print(f"Error en assignment_to_dict para asignación {getattr(a, 'id', 'unknown')}: {e}")
+        current_app.logger.error(f"Error en assignment_to_dict para asignación {getattr(a, 'id', 'unknown')}: {e}")
         return {
             'id': getattr(a, 'id', None),
             'incident_id': getattr(a, 'incident_id', None),
@@ -664,7 +664,7 @@ def get_incident_assignments(event_id, incident_id):
                 assignments_data.append(assignment_dict)
                 
         except Exception as e:
-            print(f"Error al cargar asignaciones: {e}")
+            current_app.logger.error(f"Error al cargar asignaciones: {e}")
             # Si incluso el SQL directo falla, devolver lista vacía
             assignments_data = []
         
@@ -674,7 +674,7 @@ def get_incident_assignments(event_id, incident_id):
         })
         
     except Exception as e:
-        print(f"Error general en get_incident_assignments: {e}")
+        current_app.logger.error(f"Error general en get_incident_assignments: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments', methods=['POST'])
@@ -757,7 +757,7 @@ def create_incident_assignment(event_id, incident_id):
             # Esto es especialmente importante cuando la columna servicio_nombre no existe
             if indicativo_id == -1 and servicio_nombre:
                 assignment_text_cache[assignment_id] = servicio_nombre
-                print(f"[CACHE] Guardado texto libre: assignment_id={assignment_id}, texto='{servicio_nombre}'")
+                current_app.logger.info(f"[CACHE] Guardado texto libre: assignment_id={assignment_id}, texto='{servicio_nombre}'")
             
             # Crear respuesta manual
             assignment_dict = {
@@ -783,11 +783,11 @@ def create_incident_assignment(event_id, incident_id):
             
         except Exception as e:
             db.session.rollback()
-            print(f"Error al crear asignación con SQL directo: {e}")
+            current_app.logger.error(f"Error al crear asignación con SQL directo: {e}")
             return jsonify({'status': 'error', 'message': f'Error al crear asignación: {str(e)}'}), 500
             
     except Exception as e:
-        print(f"Error general en create_incident_assignment: {e}")
+        current_app.logger.error(f"Error general en create_incident_assignment: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments/<int:assignment_id>', methods=['PUT'])
@@ -876,7 +876,7 @@ def update_incident_assignment(event_id, incident_id, assignment_id):
             
     except Exception as e:
         db.session.rollback()
-        print(f"Error en update_incident_assignment: {e}")
+        current_app.logger.error(f"Error en update_incident_assignment: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments/<int:assignment_id>', methods=['DELETE'])
@@ -909,7 +909,7 @@ def delete_incident_assignment(event_id, incident_id, assignment_id):
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error al eliminar asignación: {e}")
+        current_app.logger.error(f"Error al eliminar asignación: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # Fin del archivo

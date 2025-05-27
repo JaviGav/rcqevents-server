@@ -5,12 +5,23 @@ from flask_cors import CORS
 from config import config
 from app.socket import socketio
 from app.extensions import db, migrate
+import logging
 
 def create_app(config_name='default'):
     app = Flask(__name__)
     
     # Cargar configuración
     app.config.from_object(config[config_name])
+    
+    # Configurar logging
+    if not app.debug:
+        # En producción, configurar logging para mostrar INFO y superiores
+        logging.basicConfig(level=logging.INFO)
+        app.logger.setLevel(logging.INFO)
+    else:
+        # En desarrollo, mostrar DEBUG y superiores
+        logging.basicConfig(level=logging.DEBUG)
+        app.logger.setLevel(logging.DEBUG)
     
     # Inicializar extensiones con la app
     db.init_app(app)
