@@ -233,6 +233,14 @@ def get_address_from_coords(lat, lng):
         print(f"Error inesperado en geocodificación inversa: {e}")
         return None
 
+def update_incident_address(incident):
+    """Actualiza la dirección formateada del incidente basándose en sus coordenadas"""
+    if incident.lat is not None and incident.lng is not None:
+        address = get_address_from_coords(incident.lat, incident.lng)
+        incident.direccion_formateada = address
+    else:
+        incident.direccion_formateada = None
+
 def incident_to_dict(incident, fetch_address=False):
     data = {
         'id': incident.id,
@@ -244,6 +252,7 @@ def incident_to_dict(incident, fetch_address=False):
         'descripcion': incident.descripcion,
         'lat': incident.lat,
         'lng': incident.lng,
+        'direccion_formateada': incident.direccion_formateada,  # Usar la dirección guardada en BD
         'dorsal': incident.dorsal,
         'patologia': incident.patologia,
         'fecha_creacion': incident.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_creacion else None,
@@ -253,11 +262,8 @@ def incident_to_dict(incident, fetch_address=False):
         'fecha_finalizado': incident.fecha_finalizado.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_finalizado else None,
         'is_deleted': incident.is_deleted,
         'deleted_at': incident.deleted_at.strftime('%Y-%m-%d %H:%M:%S') if incident.deleted_at else None,
-        'assignments': [assignment_to_dict(a) for a in incident.assignments],
-        'direccion_formateada': None
+        'assignments': [assignment_to_dict(a) for a in incident.assignments]
     }
-    if fetch_address and incident.lat is not None and incident.lng is not None:
-        data['direccion_formateada'] = get_address_from_coords(incident.lat, incident.lng)
     return data
 
 def assignment_to_dict(a):
@@ -301,6 +307,9 @@ def create_incident(event_id):
     elif nuevo_estado == 'stand-by': incident.fecha_stand_by = now
     elif nuevo_estado == 'solucionado': incident.fecha_finalizado = now
 
+    # Actualizar dirección si hay coordenadas
+    update_incident_address(incident)
+
     db.session.add(incident)
     db.session.commit()
     return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
@@ -328,9 +337,21 @@ def update_incident(event_id, incident_id):
         # Por ahora, solo se añade/actualiza la fecha del nuevo estado.
         # El campo incident.estado se actualizará con setattr más abajo.
 
+    # Verificar si las coordenadas van a cambiar
+    coords_changed = False
+    if 'lat' in data and data['lat'] != incident.lat:
+        coords_changed = True
+    if 'lng' in data and data['lng'] != incident.lng:
+        coords_changed = True
+
     for field in ['estado', 'reportado_por', 'tipo', 'descripcion', 'lat', 'lng', 'dorsal', 'patologia']:
         if field in data:
             setattr(incident, field, data[field])
+    
+    # Actualizar dirección si las coordenadas cambiaron
+    if coords_changed:
+        update_incident_address(incident)
+    
     db.session.commit()
     return jsonify({'status': 'success', 'incident': incident_to_dict(incident)})
 
