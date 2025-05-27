@@ -271,7 +271,7 @@
                     <th>Descripción</th>
                     <th>Reportado por</th>
                     <th>Localización</th>
-                    <th>Asignados</th>
+                    <th>Asignados Activos</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -1381,32 +1381,41 @@ function renderIncidents(incidents) {
         const assignmentsCell = row.insertCell();
         assignmentsCell.style.minWidth = '200px'; // Para dar espacio a los estados
         if (incident.assignments && incident.assignments.length > 0) {
-            let assignmentsHtml = '';
-            incident.assignments.forEach((assignment, index) => {
-                const statusEmoji = getStatusEmoji(assignment.estado_asignacion);
-                const statusText = getStatusText(assignment.estado_asignacion);
-                const statusColors = getStatusColors(assignment.estado_asignacion);
-                
-                if (index > 0) assignmentsHtml += '<br>';
-                assignmentsHtml += `
-                    <div class="assignment-status-badge" 
-                         data-assignment-id="${assignment.id}" 
-                         data-assignment-name="${assignment.indicativo_nombre}" 
-                         data-assignment-status="${assignment.estado_asignacion}" 
-                         data-incident-id="${incident.id}"
-                         style="display:inline-flex; align-items:center; margin:2px 0; padding:3px 6px; border-radius:12px; font-size:11px; background:${statusColors.bg}; color:${statusColors.text}; border:1px solid ${statusColors.border}; cursor:pointer; transition: all 0.2s ease;" 
-                         title="Clic para cambiar estado de asignación"
-                         onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)'"
-                         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
-                        <span style="margin-right:4px;">${statusEmoji}</span>
-                        <strong style="margin-right:4px;">${assignment.indicativo_nombre}</strong>
-                        <span>${statusText}</span>
-                    </div>
-                `;
-            });
-            assignmentsCell.innerHTML = assignmentsHtml;
+            // Filtrar solo asignaciones activas (no finalizadas)
+            const activeAssignments = incident.assignments.filter(assignment => 
+                assignment.estado_asignacion !== 'finalizado'
+            );
+            
+            if (activeAssignments.length > 0) {
+                let assignmentsHtml = '';
+                activeAssignments.forEach((assignment, index) => {
+                    const statusEmoji = getStatusEmoji(assignment.estado_asignacion);
+                    const statusText = getStatusText(assignment.estado_asignacion);
+                    const statusColors = getStatusColors(assignment.estado_asignacion);
+                    
+                    if (index > 0) assignmentsHtml += '<br>';
+                    assignmentsHtml += `
+                        <div class="assignment-status-badge" 
+                             data-assignment-id="${assignment.id}" 
+                             data-assignment-name="${assignment.indicativo_nombre}" 
+                             data-assignment-status="${assignment.estado_asignacion}" 
+                             data-incident-id="${incident.id}"
+                             style="display:inline-flex; align-items:center; margin:2px 0; padding:3px 6px; border-radius:12px; font-size:11px; background:${statusColors.bg}; color:${statusColors.text}; border:1px solid ${statusColors.border}; cursor:pointer; transition: all 0.2s ease;" 
+                             title="Clic para cambiar estado de asignación"
+                             onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)'"
+                             onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
+                            <span style="margin-right:4px;">${statusEmoji}</span>
+                            <strong style="margin-right:4px;">${assignment.indicativo_nombre}</strong>
+                            <span>${statusText}</span>
+                        </div>
+                    `;
+                });
+                assignmentsCell.innerHTML = assignmentsHtml;
+            } else {
+                assignmentsCell.innerHTML = '<em style="color:#999;">Sin Ind. Activos</em>';
+            }
         } else {
-            assignmentsCell.innerHTML = '<em style="color:#999;">Ninguno</em>';
+            assignmentsCell.innerHTML = '<em style="color:#999;">Sin Ind. Activos</em>';
         }
 
         const actionsCell = row.insertCell();
@@ -1901,6 +1910,7 @@ document.addEventListener('click', async function(e) {
                 });
                 
                 const result = await response.json();
+                
                 
                 if (response.ok && result.status === 'success') {
                     alert('Asignación eliminada!');
