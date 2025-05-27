@@ -365,7 +365,7 @@ def incident_to_dict(incident, fetch_address=False):
                     assignment_dict[field] = None
             
             # Determinar el nombre a mostrar usando función auxiliar
-            assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, event_id)
+            assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, incident.event_id)
             
             assignments_data.append(assignment_dict)
     except Exception as e:
@@ -396,7 +396,7 @@ def incident_to_dict(incident, fetch_address=False):
     }
     return data
 
-def assignment_to_dict(a):
+def assignment_to_dict(a, event_id=None):
     """Convierte una asignación a diccionario de manera segura"""
     try:
         # Usar directamente la lógica robusta en lugar de intentar a.to_dict() primero
