@@ -650,16 +650,34 @@
                          
                          <div style="margin-bottom:15px;">
                              <label for="assignStatusSelect" style="display:block; margin-bottom:5px; font-weight:bold;">Estado de la asignación:</label>
-                             <select id="assignStatusSelect" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                                 <option value="pre-avisado">🔔 Pre-avisado</option>
-                                 <option value="avisado" selected>📢 Avisado</option>
-                                 <option value="en camino">🚗 En camino</option>
-                                 <option value="en el lugar">📍 En el lugar</option>
-                                 <option value="finalizado">✅ Finalizado</option>
-                             </select>
+                             <div class="status-buttons-grid" style="margin-top: 8px;">
+                                 <button type="button" class="status-btn assignment-status-btn" data-status="pre-avisado">
+                                     <div>🔔</div>
+                                     <div>Pre-avisado</div>
+                                 </button>
+                                 
+                                 <button type="button" class="status-btn assignment-status-btn" data-status="avisado">
+                                     <div>📢</div>
+                                     <div>Avisado</div>
+                                 </button>
+                                 
+                                 <button type="button" class="status-btn assignment-status-btn" data-status="en camino">
+                                     <div>🚗</div>
+                                     <div>En camino</div>
+                                 </button>
+                                 
+                                 <button type="button" class="status-btn assignment-status-btn" data-status="en el lugar">
+                                     <div>📍</div>
+                                     <div>En el lugar</div>
+                                 </button>
+                                 
+                                 <button type="button" class="status-btn assignment-status-btn" data-status="finalizado">
+                                     <div>✅</div>
+                                     <div>Finalizado</div>
+                                 </button>
+                             </div>
+                             <input type="hidden" id="assignStatusSelect" name="estado_asignacion" value="avisado">
                          </div>
-                         
-
                          
                          <div style="display:flex; gap:10px; justify-content:flex-end;">
                              <button type="button" id="cancelAssignBtn" style="background:#6c757d; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Cancelar</button>
@@ -1823,7 +1841,7 @@ async function openAssignIncidentModal(incidentId) {
             document.getElementById('assignOtro').value = '';
             document.getElementById('assignOtroGroup').style.display = 'none';
             document.getElementById('assignOtro').required = false;
-            document.getElementById('assignStatusSelect').value = 'avisado';
+            setAssignmentStatus('avisado');
             
             assignIncidentModal.style.display = 'flex';
         } else {
@@ -2460,14 +2478,46 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Event listeners para botones de estado de asignación
+    document.querySelectorAll('.assignment-status-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const selectedStatus = this.dataset.status;
+            
+            // Actualizar campo hidden
+            document.getElementById('assignStatusSelect').value = selectedStatus;
+            
+            // Actualizar estilos visuales
+            document.querySelectorAll('.assignment-status-btn').forEach(btn => {
+                if (btn.dataset.status === selectedStatus) {
+                    btn.classList.add('current-status');
+                } else {
+                    btn.classList.remove('current-status');
+                }
+            });
+        });
+    });
+    
     // Establecer estado inicial por defecto
     setIncidentStatus('activo');
+    setAssignmentStatus('avisado');
 });
 
 // Función para establecer estado inicial del incidente
 function setIncidentStatus(status) {
     document.getElementById('incidentEstado').value = status;
     document.querySelectorAll('.incident-status-btn').forEach(btn => {
+        if (btn.dataset.status === status) {
+            btn.classList.add('current-status');
+        } else {
+            btn.classList.remove('current-status');
+        }
+    });
+}
+
+// Función para establecer estado de asignación
+function setAssignmentStatus(status) {
+    document.getElementById('assignStatusSelect').value = status;
+    document.querySelectorAll('.assignment-status-btn').forEach(btn => {
         if (btn.dataset.status === status) {
             btn.classList.add('current-status');
         } else {
