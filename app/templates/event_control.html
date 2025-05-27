@@ -186,7 +186,7 @@
     </div>
     <!-- Gestión de incidentes -->
     <div class="incidents-container" style="background:#fff; padding:20px; border-radius:8px; margin-top:30px; box-shadow:0 2px 4px rgba(0,0,0,0.08);">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
             <h2>Incidentes</h2>
             <div>
                 <label for="showDeletedIncidents" style="margin-right: 10px; font-weight:normal;">
@@ -194,6 +194,72 @@
                     Mostrar eliminados
                 </label>
                 <button id="addIncidentBtn" style="background:#e67e22; color:#fff; padding:8px 18px; border:none; border-radius:4px; font-size:15px; cursor:pointer;">+ Nuevo incidente</button>
+            </div>
+        </div>
+        
+        <!-- Controles de búsqueda y filtros -->
+        <div style="background:#f8f9fa; padding:15px; border-radius:6px; margin-bottom:15px; border:1px solid #e9ecef;">
+            <div style="display:grid; grid-template-columns: 1fr 200px 200px auto; gap:10px; align-items:end;">
+                <!-- Buscador general -->
+                <div>
+                    <label for="incidentSearch" style="display:block; margin-bottom:5px; font-weight:bold; font-size:14px;">🔍 Buscar en incidentes:</label>
+                    <input type="text" id="incidentSearch" placeholder="Buscar por ID, tipo, descripción, reportado por, ubicación..." style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:14px;">
+                </div>
+                
+                <!-- Filtro por estado -->
+                <div>
+                    <label for="statusFilter" style="display:block; margin-bottom:5px; font-weight:bold; font-size:14px;">Estado:</label>
+                    <select id="statusFilter" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:14px;">
+                        <option value="">Todos los estados</option>
+                        <option value="pre-incidente">Pre-incidente</option>
+                        <option value="activo">Activo</option>
+                        <option value="stand-by">Stand-by</option>
+                        <option value="solucionado">Solucionado</option>
+                    </select>
+                </div>
+                
+                <!-- Filtro por tipo -->
+                <div>
+                    <label for="typeFilter" style="display:block; margin-bottom:5px; font-weight:bold; font-size:14px;">Tipo:</label>
+                    <select id="typeFilter" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:14px;">
+                        <option value="">Todos los tipos</option>
+                        <option value="🚑 Asistencia Médica">🚑 Asistencia Médica</option>
+                        <option value="🚧 Incidencia Circuito">🚧 Incidencia Circuito</option>
+                        <option value="👥 Apoyo al Compañero">👥 Apoyo al Compañero</option>
+                        <option value="👥 Afluencia Excesiva">👥 Afluencia Excesiva</option>
+                        <option value="🔥 Incendio">🔥 Incendio</option>
+                        <option value="💧 Fuga de Agua/Inundación">💧 Fuga de Agua/Inundación</option>
+                        <option value="🛠️ Avería Técnica">🛠️ Avería Técnica</option>
+                        <option value="🗣️ Altercado/Discusión">🗣️ Altercado/Discusión</option>
+                        <option value="❓ Otro (General)">❓ Otro (General)</option>
+                    </select>
+                </div>
+                
+                <!-- Botón limpiar filtros -->
+                <div>
+                    <button id="clearFiltersBtn" style="background:#6c757d; color:#fff; padding:8px 12px; border:none; border-radius:4px; cursor:pointer; font-size:14px;" title="Limpiar todos los filtros">🗑️ Limpiar</button>
+                </div>
+            </div>
+            
+            <!-- Controles de ordenación -->
+            <div style="margin-top:10px; padding-top:10px; border-top:1px solid #dee2e6;">
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <span style="font-weight:bold; font-size:14px;">📊 Ordenar por:</span>
+                    <select id="sortField" style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:14px;">
+                        <option value="incident_number">ID</option>
+                        <option value="tipo">Tipo</option>
+                        <option value="estado">Estado</option>
+                        <option value="descripcion">Descripción</option>
+                        <option value="reportado_por">Reportado por</option>
+                        <option value="direccion_formateada">Ubicación</option>
+                        <option value="created_at">Fecha creación</option>
+                    </select>
+                    <select id="sortOrder" style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:14px;">
+                        <option value="asc">⬆️ Ascendente</option>
+                        <option value="desc">⬇️ Descendente</option>
+                    </select>
+                    <span id="incidentCount" style="margin-left:auto; color:#666; font-size:14px; font-weight:bold;"></span>
+                </div>
             </div>
         </div>
         <table id="incidentsTable" style="width:100%; margin-top:15px; border-collapse:collapse;">
@@ -975,16 +1041,27 @@ async function openIncidentModalForEdit(incidentId) {
 
 
 
+// Variables globales para filtrado y ordenación
+let allIncidents = []; // Almacenar todos los incidentes
+let filteredIncidents = []; // Incidentes después de aplicar filtros
+
 function renderIncidents(incidents) {
     const tableBody = document.getElementById('incidentsTableBody');
     tableBody.innerHTML = ''; // Limpiar tabla
+
+    // Actualizar contador
+    updateIncidentCount(incidents.length);
 
     if (!incidents || incidents.length === 0) {
         const row = tableBody.insertRow();
         const cell = row.insertCell();
         cell.colSpan = 8; // Número de columnas de la tabla
-        cell.textContent = 'No hay incidentes registrados para este evento.';
+        cell.textContent = filteredIncidents.length === 0 && allIncidents.length > 0 ? 
+            'No se encontraron incidentes que coincidan con los filtros.' : 
+            'No hay incidentes registrados para este evento.';
         cell.style.textAlign = 'center';
+        cell.style.color = '#666';
+        cell.style.fontStyle = 'italic';
         return;
     }
 
@@ -1047,6 +1124,86 @@ function renderIncidents(incidents) {
     });
 }
 
+function updateIncidentCount(count) {
+    const countElement = document.getElementById('incidentCount');
+    if (countElement) {
+        countElement.textContent = `${count} incidente${count !== 1 ? 's' : ''}`;
+    }
+}
+
+function filterAndSortIncidents() {
+    const searchTerm = document.getElementById('incidentSearch').value.toLowerCase().trim();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const typeFilter = document.getElementById('typeFilter').value;
+    const sortField = document.getElementById('sortField').value;
+    const sortOrder = document.getElementById('sortOrder').value;
+
+    // Aplicar filtros
+    filteredIncidents = allIncidents.filter(incident => {
+        // Filtro de búsqueda general
+        if (searchTerm) {
+            const searchableText = [
+                incident.incident_number?.toString(),
+                incident.tipo,
+                incident.descripcion,
+                incident.reportado_por,
+                incident.direccion_formateada,
+                incident.info_ubicacion,
+                incident.dorsal,
+                incident.patologia
+            ].filter(Boolean).join(' ').toLowerCase();
+            
+            if (!searchableText.includes(searchTerm)) {
+                return false;
+            }
+        }
+
+        // Filtro por estado
+        if (statusFilter && incident.estado !== statusFilter) {
+            return false;
+        }
+
+        // Filtro por tipo
+        if (typeFilter && incident.tipo !== typeFilter) {
+            return false;
+        }
+
+        return true;
+    });
+
+    // Aplicar ordenación
+    filteredIncidents.sort((a, b) => {
+        let valueA = a[sortField];
+        let valueB = b[sortField];
+
+        // Manejar valores nulos/undefined
+        if (valueA == null) valueA = '';
+        if (valueB == null) valueB = '';
+
+        // Convertir a string para comparación
+        valueA = valueA.toString().toLowerCase();
+        valueB = valueB.toString().toLowerCase();
+
+        // Para números (como incident_number)
+        if (sortField === 'incident_number') {
+            valueA = parseInt(a[sortField]) || 0;
+            valueB = parseInt(b[sortField]) || 0;
+        }
+
+        let comparison = 0;
+        if (valueA < valueB) {
+            comparison = -1;
+        } else if (valueA > valueB) {
+            comparison = 1;
+        }
+
+        return sortOrder === 'desc' ? comparison * -1 : comparison;
+    });
+
+    // Renderizar resultados filtrados y ordenados
+    renderIncidents(filteredIncidents);
+}
+
 async function loadIncidents() {
     const showDeleted = document.getElementById('showDeletedIncidents').checked;
     let apiUrl = `/events/${eventId}/incidents`;
@@ -1061,13 +1218,16 @@ async function loadIncidents() {
         }
         const result = await response.json();
         if (result.status === 'success') {
-            renderIncidents(result.incidents);
+            allIncidents = result.incidents || [];
+            filterAndSortIncidents(); // Aplicar filtros y ordenación
         } else {
             console.error('Error al cargar incidentes:', result.message);
+            allIncidents = [];
             renderIncidents([]); // Mostrar tabla vacía o con mensaje de error
         }
     } catch (error) {
         console.error('Error de red al cargar incidentes:', error);
+        allIncidents = [];
         renderIncidents([]); // Mostrar tabla vacía o con mensaje de error
         const tableBody = document.getElementById('incidentsTableBody');
         if (tableBody.innerHTML === '') { // Si renderIncidents([]) no puso nada por error previo
@@ -1247,8 +1407,35 @@ document.getElementById('incidentsTableBody').addEventListener('click', async fu
 });
 
 // TODO: Lógica para cargar incidentes, enviar formulario (crear/editar), etc.
-// Cargar incidentes al iniciar
-document.addEventListener('DOMContentLoaded', loadIncidents);
+// Event listeners para filtros y búsqueda
+document.addEventListener('DOMContentLoaded', function() {
+    loadIncidents();
+    
+    // Buscador general con debounce
+    let searchTimeout;
+    document.getElementById('incidentSearch').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(filterAndSortIncidents, 300);
+    });
+    
+    // Filtros por estado y tipo
+    document.getElementById('statusFilter').addEventListener('change', filterAndSortIncidents);
+    document.getElementById('typeFilter').addEventListener('change', filterAndSortIncidents);
+    
+    // Controles de ordenación
+    document.getElementById('sortField').addEventListener('change', filterAndSortIncidents);
+    document.getElementById('sortOrder').addEventListener('change', filterAndSortIncidents);
+    
+    // Botón limpiar filtros
+    document.getElementById('clearFiltersBtn').addEventListener('click', function() {
+        document.getElementById('incidentSearch').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('typeFilter').value = '';
+        document.getElementById('sortField').value = 'incident_number';
+        document.getElementById('sortOrder').value = 'asc';
+        filterAndSortIncidents();
+    });
+});
 
 // Listener para el botón de búsqueda de dirección en el modal de incidentes
 incidentSearchAddressBtn.addEventListener('click', async function() {
