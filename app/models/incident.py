@@ -13,6 +13,7 @@ class Incident(db.Model):
     lat = db.Column(db.Float)
     lng = db.Column(db.Float)
     direccion_formateada = db.Column(db.String(500), nullable=True)  # Campo para guardar la dirección
+    info_ubicacion = db.Column(db.Text, nullable=True)  # Campo para información adicional de ubicación
     dorsal = db.Column(db.String(32))
     patologia = db.Column(db.String(128))
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)

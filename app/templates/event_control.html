@@ -272,6 +272,10 @@
                     </div>
                     <div id="incidentMap" style="height:200px; width:100%; border-radius:8px; margin-bottom:8px;"></div>
                     <div id="incidentAddressDisplay" style="font-size:0.9em; color:#555; margin-bottom:8px; min-height:1.2em;"></div>
+                    <div style="margin-bottom:10px;">
+                        <label for="incidentInfoUbicacion" style="display:block; margin-bottom:5px; font-weight:bold;">Información adicional de ubicación:</label>
+                        <input type="text" id="incidentInfoUbicacion" name="info_ubicacion" style="width:90%;" placeholder="Ej: Cerca del escenario principal, Entrada VIP, Zona de food trucks...">
+                    </div>
                     <button type="button" id="showCoordsBtn" style="background:#6c757d; color:#fff; padding:6px 12px; border:none; border-radius:4px; font-size:12px; cursor:pointer;">⚙️ Coordenadas Avanzadas</button>
                     <!-- Campos ocultos para lat/lng -->
                     <input type="hidden" id="incidentLat" name="lat">
@@ -922,6 +926,7 @@ async function openIncidentModalForEdit(incidentId) {
             document.getElementById('incidentTipo').value = incident.tipo || '';
             document.getElementById('incidentDescripcion').value = incident.descripcion || '';
             document.getElementById('incidentReportadoPor').value = incident.reportado_por || '';
+            document.getElementById('incidentInfoUbicacion').value = incident.info_ubicacion || '';
             document.getElementById('incidentEstado').value = incident.estado || 'activo';
             document.getElementById('incidentDorsal').value = incident.dorsal || '';
             document.getElementById('incidentPatologia').value = incident.patologia || '';
@@ -1016,7 +1021,14 @@ function renderIncidents(incidents) {
         if (incident.lat && incident.lng) {
             const gmapsLink = `<a href="https://maps.google.com/?q=${incident.lat},${incident.lng}" target="_blank" title="Ver en mapa" style="color:#007bff; text-decoration:none;">📍</a>`;
             const address = incident.direccion_formateada || 'Dirección no disponible';
-            locCell.innerHTML = `${gmapsLink} <span style="margin-left:5px;">${address}</span>`;
+            let locationInfo = `${gmapsLink} <span style="margin-left:5px;">${address}</span>`;
+            
+            // Añadir información adicional de ubicación si existe
+            if (incident.info_ubicacion && incident.info_ubicacion.trim()) {
+                locationInfo += `<br><small style="color:#666; margin-left:20px;">📌 ${incident.info_ubicacion}</small>`;
+            }
+            
+            locCell.innerHTML = locationInfo;
         } else {
             locCell.textContent = '-';
         }
@@ -1129,6 +1141,7 @@ incidentForm.addEventListener('submit', async function(e) {
         reportado_por: document.getElementById('incidentReportadoPor').value,
         lat: parseFloat(document.getElementById('incidentLat').value),
         lng: parseFloat(document.getElementById('incidentLng').value),
+        info_ubicacion: document.getElementById('incidentInfoUbicacion').value || null,
         estado: document.getElementById('incidentEstado').value,
         dorsal: document.getElementById('incidentDorsal').value || null,
         patologia: document.getElementById('incidentPatologia').value || null,

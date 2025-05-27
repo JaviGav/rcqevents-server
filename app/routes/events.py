@@ -253,6 +253,7 @@ def incident_to_dict(incident, fetch_address=False):
         'lat': incident.lat,
         'lng': incident.lng,
         'direccion_formateada': incident.direccion_formateada,  # Usar la dirección guardada en BD
+        'info_ubicacion': incident.info_ubicacion,  # Información adicional de ubicación
         'dorsal': incident.dorsal,
         'patologia': incident.patologia,
         'fecha_creacion': incident.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_creacion else None,
@@ -298,6 +299,7 @@ def create_incident(event_id):
         descripcion=data.get('descripcion'),
         lat=data.get('lat'),
         lng=data.get('lng'),
+        info_ubicacion=data.get('info_ubicacion'),
         dorsal=data.get('dorsal'),
         patologia=data.get('patologia'),
         fecha_creacion=now
@@ -344,7 +346,7 @@ def update_incident(event_id, incident_id):
     if 'lng' in data and data['lng'] != incident.lng:
         coords_changed = True
 
-    for field in ['estado', 'reportado_por', 'tipo', 'descripcion', 'lat', 'lng', 'dorsal', 'patologia']:
+    for field in ['estado', 'reportado_por', 'tipo', 'descripcion', 'lat', 'lng', 'info_ubicacion', 'dorsal', 'patologia']:
         if field in data:
             setattr(incident, field, data[field])
     
