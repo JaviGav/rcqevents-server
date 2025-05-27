@@ -443,52 +443,83 @@
              <p id="assignIncidentInfo" style="color:#666; margin-bottom:20px;"></p>
              
              <div style="margin-bottom:20px;">
-                 <h3 style="margin-bottom:10px;">Asignaciones Actuales:</h3>
+                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                     <h3 style="margin:0;">Asignaciones Actuales:</h3>
+                     <div id="batchControls" style="display:none;">
+                         <button id="selectAllBtn" style="background:#6c757d; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; margin-right:5px; font-size:12px;">Seleccionar Todo</button>
+                         <button id="deselectAllBtn" style="background:#6c757d; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:12px;">Deseleccionar</button>
+                     </div>
+                 </div>
                  <div id="currentAssignments" style="background:#f8f9fa; padding:10px; border-radius:6px; min-height:40px;">
                      <em style="color:#666;">Cargando asignaciones...</em>
                  </div>
-             </div>
-             
-             <div style="border-top:1px solid #dee2e6; padding-top:20px;">
-                 <h3 style="margin-bottom:15px;">Nueva Asignación:</h3>
-                 <form id="assignIncidentForm">
-                     <div style="margin-bottom:15px;">
-                         <label for="assignIndicativoSelect" style="display:block; margin-bottom:5px; font-weight:bold;">Asignar a:</label>
-                         <select id="assignIndicativoSelect" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                             <option value="">-- Selecciona a quién asignar --</option>
-                             <option value="CME">CME</option>
-                             <option value="GUB">GUB</option>
-                             <option value="Servicios Médicos">Servicios Médicos</option>
-                             <option value="Seguridad">Seguridad</option>
-                             {% for ind in indicativos %}
-                                 <option value="{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}">{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}</option>
-                             {% endfor %}
-                             <option value="Otro">Otro (especificar)</option>
-                         </select>
+                 
+                 <!-- Controles de cambio en batch -->
+                 <div id="batchStatusControls" style="display:none; margin-top:15px; padding:15px; background:#e9ecef; border-radius:6px; border:1px solid #dee2e6;">
+                     <h4 style="margin:0 0 10px 0; color:#495057;">Cambio de Estado en Lote:</h4>
+                     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:8px;">
+                         <button class="batch-status-btn" data-status="pre-avisado" style="padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:#fff3cd; color:#856404; border:2px solid #ffeaa7; font-size:11px;">
+                             🔔 Pre-avisado
+                         </button>
+                         <button class="batch-status-btn" data-status="avisado" style="padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:#d1ecf1; color:#0c5460; border:2px solid #bee5eb; font-size:11px;">
+                             📢 Avisado
+                         </button>
+                         <button class="batch-status-btn" data-status="en camino" style="padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:#e2e3e5; color:#383d41; border:2px solid #d6d8db; font-size:11px;">
+                             🚗 En camino
+                         </button>
+                         <button class="batch-status-btn" data-status="en el lugar" style="padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:#cce5ff; color:#004085; border:2px solid #99d6ff; font-size:11px;">
+                             📍 En el lugar
+                         </button>
+                         <button class="batch-status-btn" data-status="finalizado" style="padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; background:#d4edda; color:#155724; border:2px solid #c3e6cb; font-size:11px;">
+                             ✅ Finalizado
+                         </button>
                      </div>
-                     <div style="margin-bottom:15px;" id="assignOtroGroup" style="display:none;">
-                         <label for="assignOtro" style="display:block; margin-bottom:5px; font-weight:bold;">Especifica a quién asignar:</label>
-                         <input type="text" id="assignOtro" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="Nombre o descripción de a quién asignar...">
+                     <div style="margin-top:10px; text-align:center;">
+                         <small style="color:#666;">Selecciona las asignaciones arriba y luego elige el nuevo estado</small>
                      </div>
-                     
-                     <div style="margin-bottom:15px;">
-                         <label for="assignStatusSelect" style="display:block; margin-bottom:5px; font-weight:bold;">Estado de la asignación:</label>
-                         <select id="assignStatusSelect" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                             <option value="pre-avisado">🔔 Pre-avisado</option>
-                             <option value="avisado" selected>📢 Avisado</option>
-                             <option value="en camino">🚗 En camino</option>
-                             <option value="en el lugar">📍 En el lugar</option>
-                             <option value="finalizado">✅ Finalizado</option>
-                         </select>
-                     </div>
-                     
+                 </div>
+                 
+                 <div style="border-top:1px solid #dee2e6; padding-top:20px;">
+                     <h3 style="margin-bottom:15px;">Nueva Asignación:</h3>
+                     <form id="assignIncidentForm">
+                         <div style="margin-bottom:15px;">
+                             <label for="assignIndicativoSelect" style="display:block; margin-bottom:5px; font-weight:bold;">Asignar a:</label>
+                             <select id="assignIndicativoSelect" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                                 <option value="">-- Selecciona a quién asignar --</option>
+                                 <option value="CME">CME</option>
+                                 <option value="GUB">GUB</option>
+                                 <option value="Servicios Médicos">Servicios Médicos</option>
+                                 <option value="Seguridad">Seguridad</option>
+                                 {% for ind in indicativos %}
+                                     <option value="{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}">{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}</option>
+                                 {% endfor %}
+                                 <option value="Otro">Otro (especificar)</option>
+                             </select>
+                         </div>
+                         <div style="margin-bottom:15px;" id="assignOtroGroup" style="display:none;">
+                             <label for="assignOtro" style="display:block; margin-bottom:5px; font-weight:bold;">Especifica a quién asignar:</label>
+                             <input type="text" id="assignOtro" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="Nombre o descripción de a quién asignar...">
+                         </div>
+                         
+                         <div style="margin-bottom:15px;">
+                             <label for="assignStatusSelect" style="display:block; margin-bottom:5px; font-weight:bold;">Estado de la asignación:</label>
+                             <select id="assignStatusSelect" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                                 <option value="pre-avisado">🔔 Pre-avisado</option>
+                                 <option value="avisado" selected>📢 Avisado</option>
+                                 <option value="en camino">🚗 En camino</option>
+                                 <option value="en el lugar">📍 En el lugar</option>
+                                 <option value="finalizado">✅ Finalizado</option>
+                             </select>
+                         </div>
+                         
 
-                     
-                     <div style="display:flex; gap:10px; justify-content:flex-end;">
-                         <button type="button" id="cancelAssignBtn" style="background:#6c757d; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Cancelar</button>
-                         <button type="submit" style="background:#28a745; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Asignar</button>
-                     </div>
-                 </form>
+                         
+                         <div style="display:flex; gap:10px; justify-content:flex-end;">
+                             <button type="button" id="cancelAssignBtn" style="background:#6c757d; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Cancelar</button>
+                             <button type="submit" style="background:#28a745; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Asignar</button>
+                         </div>
+                     </form>
+                 </div>
              </div>
          </div>
      </div>
@@ -1639,6 +1670,9 @@ async function loadCurrentAssignments(incidentId) {
             
             if (assignments.length === 0) {
                 currentAssignmentsDiv.innerHTML = '<em style="color:#666;">No hay asignaciones actuales</em>';
+                // Ocultar controles de batch si no hay asignaciones
+                document.getElementById('batchControls').style.display = 'none';
+                document.getElementById('batchStatusControls').style.display = 'none';
             } else {
                 let html = '';
                 assignments.forEach(assignment => {
@@ -1646,8 +1680,11 @@ async function loadCurrentAssignments(incidentId) {
                     const statusText = getStatusText(assignment.estado_asignacion);
                     html += `
                         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #dee2e6; border-radius:4px; margin-bottom:8px; background:#fff;">
-                            <div>
-                                <strong>${assignment.indicativo_nombre}</strong> - ${statusEmoji} ${statusText}
+                            <div style="display:flex; align-items:center;">
+                                <input type="checkbox" class="assignment-checkbox" data-assignment-id="${assignment.id}" style="margin-right:10px;">
+                                <div>
+                                    <strong>${assignment.indicativo_nombre}</strong> - ${statusEmoji} ${statusText}
+                                </div>
                             </div>
                             <div>
                                 <button class="update-assignment-btn" data-assignment-id="${assignment.id}" style="background:#007bff; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; margin-right:5px;" title="Actualizar estado">📝</button>
@@ -1657,15 +1694,115 @@ async function loadCurrentAssignments(incidentId) {
                     `;
                 });
                 currentAssignmentsDiv.innerHTML = html;
+                
+                // Mostrar controles de batch si hay asignaciones
+                document.getElementById('batchControls').style.display = 'block';
+                
+                // Agregar event listeners para checkboxes
+                document.querySelectorAll('.assignment-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', updateBatchControls);
+                });
+                
+                updateBatchControls(); // Actualizar estado inicial
             }
         } else {
             currentAssignmentsDiv.innerHTML = '<em style="color:#e74c3c;">Error al cargar asignaciones</em>';
+            document.getElementById('batchControls').style.display = 'none';
+            document.getElementById('batchStatusControls').style.display = 'none';
         }
     } catch (error) {
         console.error('Error al cargar asignaciones:', error);
         currentAssignmentsDiv.innerHTML = '<em style="color:#e74c3c;">Error de red al cargar asignaciones</em>';
+        document.getElementById('batchControls').style.display = 'none';
+        document.getElementById('batchStatusControls').style.display = 'none';
     }
 }
+
+// Función para actualizar controles de batch según selección
+function updateBatchControls() {
+    const checkboxes = document.querySelectorAll('.assignment-checkbox');
+    const checkedBoxes = document.querySelectorAll('.assignment-checkbox:checked');
+    const batchStatusControls = document.getElementById('batchStatusControls');
+    
+    if (checkedBoxes.length > 0) {
+        batchStatusControls.style.display = 'block';
+    } else {
+        batchStatusControls.style.display = 'none';
+    }
+}
+
+// Event listeners para controles de selección
+document.getElementById('selectAllBtn').addEventListener('click', function() {
+    document.querySelectorAll('.assignment-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateBatchControls();
+});
+
+document.getElementById('deselectAllBtn').addEventListener('click', function() {
+    document.querySelectorAll('.assignment-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateBatchControls();
+});
+
+// Event listeners para botones de cambio de estado en batch
+document.querySelectorAll('.batch-status-btn').forEach(button => {
+    button.addEventListener('click', async function() {
+        const newStatus = this.dataset.status;
+        const checkedBoxes = document.querySelectorAll('.assignment-checkbox:checked');
+        
+        if (checkedBoxes.length === 0) {
+            alert('Por favor, selecciona al menos una asignación para cambiar su estado.');
+            return;
+        }
+        
+        const assignmentIds = Array.from(checkedBoxes).map(cb => cb.dataset.assignmentId);
+        const confirmMessage = `¿Estás seguro de que quieres cambiar el estado de ${assignmentIds.length} asignación${assignmentIds.length > 1 ? 'es' : ''} a "${getStatusText(newStatus)}"?`;
+        
+        if (!confirm(confirmMessage)) return;
+        
+        // Cambiar estado de todas las asignaciones seleccionadas
+        let successCount = 0;
+        let errorCount = 0;
+        
+        for (const assignmentId of assignmentIds) {
+            try {
+                const response = await fetch(`/events/${eventId}/incidents/${currentIncidentForAssignment}/assignments/${assignmentId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ estado_asignacion: newStatus }),
+                });
+                
+                const result = await response.json();
+                if (response.ok && result.status === 'success') {
+                    successCount++;
+                } else {
+                    errorCount++;
+                    console.error(`Error al cambiar estado de asignación ${assignmentId}:`, result.message);
+                }
+            } catch (error) {
+                errorCount++;
+                console.error(`Error de red al cambiar estado de asignación ${assignmentId}:`, error);
+            }
+        }
+        
+        // Mostrar resultado
+        if (successCount > 0 && errorCount === 0) {
+            alert(`✅ Se cambiaron exitosamente ${successCount} asignación${successCount > 1 ? 'es' : ''}.`);
+        } else if (successCount > 0 && errorCount > 0) {
+            alert(`⚠️ Se cambiaron ${successCount} asignación${successCount > 1 ? 'es' : ''} exitosamente, pero ${errorCount} fallaron.`);
+        } else {
+            alert(`❌ Error: No se pudo cambiar ninguna asignación.`);
+        }
+        
+        // Recargar asignaciones y tabla de incidentes
+        await loadCurrentAssignments(currentIncidentForAssignment);
+        loadIncidents();
+    });
+});
 
 // Funciones auxiliares para estados
 function getStatusEmoji(status) {
