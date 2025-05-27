@@ -1426,16 +1426,18 @@ function renderIncidents(incidents) {
                     
                     if (index > 0) assignmentsHtml += '<br>';
                     assignmentsHtml += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #dee2e6; border-radius:4px; margin-bottom:8px; background:#fff;">
-                            <div style="display:flex; align-items:center;">
-                                <input type="checkbox" class="assignment-checkbox" data-assignment-id="${assignment.id}" style="margin-right:10px;">
-                                <div>
-                                    <strong>${assignment.indicativo_nombre}</strong> - ${statusEmoji} ${statusText}
-                                </div>
-                            </div>
-                            <div>
-                                <button class="remove-assignment-btn" data-assignment-id="${assignment.id}" style="background:#dc3545; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;" title="Quitar asignación">🗑️</button>
-                            </div>
+                        <div class="assignment-status-badge" 
+                             data-assignment-id="${assignment.id}" 
+                             data-assignment-name="${assignment.indicativo_nombre}" 
+                             data-assignment-status="${assignment.estado_asignacion}" 
+                             data-incident-id="${incident.id}"
+                             style="display:inline-flex; align-items:center; margin:2px 0; padding:3px 6px; border-radius:12px; font-size:11px; background:${statusColors.bg}; color:${statusColors.text}; border:1px solid ${statusColors.border}; cursor:pointer; transition: all 0.2s ease;" 
+                             title="Clic para cambiar estado de asignación"
+                             onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)'"
+                             onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
+                            <span style="margin-right:4px;">${statusEmoji}</span>
+                            <strong style="margin-right:4px;">${assignment.indicativo_nombre}</strong>
+                            <span>${statusText}</span>
                         </div>
                     `;
                 });
