@@ -493,12 +493,28 @@
                 </div>
                 <div class="form-group">
                     <label for="incidentEstado">Estado:</label>
-                    <select id="incidentEstado" name="estado" style="width:90%;">
-                        <option value="pre-incidente">Pre-incidente</option>
-                        <option value="activo" selected>Activo</option>
-                        <option value="stand-by">Stand-by</option>
-                        <option value="solucionado">Solucionado</option>
-                    </select>
+                    <div class="status-buttons-grid" style="margin-top: 8px;">
+                        <button type="button" class="status-btn incident-status-btn" data-status="pre-incidente">
+                            <div>🟡</div>
+                            <div>Pre-incidente</div>
+                        </button>
+                        
+                        <button type="button" class="status-btn incident-status-btn" data-status="activo">
+                            <div>🔴</div>
+                            <div>Activo</div>
+                        </button>
+                        
+                        <button type="button" class="status-btn incident-status-btn" data-status="stand-by">
+                            <div>🔵</div>
+                            <div>Stand-by</div>
+                        </button>
+                        
+                        <button type="button" class="status-btn incident-status-btn" data-status="solucionado">
+                            <div>🟢</div>
+                            <div>Solucionado</div>
+                        </button>
+                    </div>
+                    <input type="hidden" id="incidentEstado" name="estado" value="activo">
                 </div>
                 <button type="submit" style="background:#27ae60; color:#fff; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">Guardar</button>
             </form>
@@ -1402,7 +1418,8 @@ async function openIncidentModalForEdit(incidentId) {
             
             document.getElementById('incidentDescripcion').value = incident.descripcion || '';
             document.getElementById('incidentInfoUbicacion').value = incident.info_ubicacion || '';
-            document.getElementById('incidentEstado').value = incident.estado || 'activo';
+            // Usar la nueva función para establecer el estado con botones visuales
+            setIncidentStatus(incident.estado || 'activo');
             document.getElementById('incidentDorsal').value = incident.dorsal || '';
             document.getElementById('incidentPatologia').value = incident.patologia || '';
             
@@ -2423,7 +2440,41 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('sortOrder').value = 'asc';
         filterAndSortIncidents();
     });
+    
+    // Event listeners para botones de estado del incidente
+    document.querySelectorAll('.incident-status-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const selectedStatus = this.dataset.status;
+            
+            // Actualizar campo hidden
+            document.getElementById('incidentEstado').value = selectedStatus;
+            
+            // Actualizar estilos visuales
+            document.querySelectorAll('.incident-status-btn').forEach(btn => {
+                if (btn.dataset.status === selectedStatus) {
+                    btn.classList.add('current-status');
+                } else {
+                    btn.classList.remove('current-status');
+                }
+            });
+        });
+    });
+    
+    // Establecer estado inicial por defecto
+    setIncidentStatus('activo');
 });
+
+// Función para establecer estado inicial del incidente
+function setIncidentStatus(status) {
+    document.getElementById('incidentEstado').value = status;
+    document.querySelectorAll('.incident-status-btn').forEach(btn => {
+        if (btn.dataset.status === status) {
+            btn.classList.add('current-status');
+        } else {
+            btn.classList.remove('current-status');
+        }
+    });
+}
 
 // Listener para el botón de búsqueda de dirección en el modal de incidentes
 incidentSearchAddressBtn.addEventListener('click', async function() {
