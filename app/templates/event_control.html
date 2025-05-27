@@ -1570,7 +1570,7 @@ function renderIncidents(incidents) {
             );
             
             if (activeAssignments.length > 0) {
-                let assignmentsHtml = '';
+                let html = '';
                 activeAssignments.forEach((assignment, index) => {
                     const statusEmoji = getStatusEmoji(assignment.estado_asignacion);
                     const statusText = getStatusText(assignment.estado_asignacion);
@@ -1874,18 +1874,26 @@ async function loadCurrentAssignments(incidentId) {
             } else {
                 let html = '';
                 assignments.forEach(assignment => {
+                    const statusColors = getStatusColors(assignment.estado_asignacion);
                     const statusEmoji = getStatusEmoji(assignment.estado_asignacion);
                     const statusText = getStatusText(assignment.estado_asignacion);
+                    
                     html += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #dee2e6; border-radius:4px; margin-bottom:8px; background:#fff;">
-                            <div style="display:flex; align-items:center;">
-                                <input type="checkbox" class="assignment-checkbox" data-assignment-id="${assignment.id}" style="margin-right:10px;">
-                                <div>
-                                    <strong>${assignment.indicativo_nombre}</strong> - ${statusEmoji} ${statusText}
+                        <div class="assignment-row" data-assignment-id="${assignment.id}" style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #dee2e6; border-radius:4px; margin-bottom:8px; background:#fff; cursor:pointer; transition: all 0.2s ease;" 
+                             onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                             onmouseout="this.style.backgroundColor='#fff'">
+                            <div style="display:flex; align-items:center; flex:1;">
+                                <input type="checkbox" class="assignment-checkbox" data-assignment-id="${assignment.id}" style="margin-right:12px;">
+                                <div style="display:flex; align-items:center; gap:12px;">
+                                    <strong style="min-width:120px;">${assignment.indicativo_nombre}</strong>
+                                    <div class="status-badge" style="display:inline-flex; align-items:center; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:bold; background:${statusColors.bg}; color:${statusColors.text}; border:1px solid ${statusColors.border};">
+                                        <span style="margin-right:4px;">${statusEmoji}</span>
+                                        <span>${statusText}</span>
+                                    </div>
                                 </div>
                             </div>
                             <div>
-                                <button class="remove-assignment-btn" data-assignment-id="${assignment.id}" style="background:#dc3545; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;" title="Quitar asignación">🗑️</button>
+                                <button class="remove-assignment-btn" data-assignment-id="${assignment.id}" style="background:#dc3545; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;" title="Quitar asignación" onclick="event.stopPropagation();">🗑️</button>
                             </div>
                         </div>
                     `;
@@ -1898,6 +1906,34 @@ async function loadCurrentAssignments(incidentId) {
                 // Agregar event listeners para checkboxes
                 document.querySelectorAll('.assignment-checkbox').forEach(checkbox => {
                     checkbox.addEventListener('change', updateBatchControls);
+                });
+                
+                // Agregar event listeners para hacer clickeable toda la fila
+                document.querySelectorAll('.assignment-row').forEach(row => {
+                    row.addEventListener('click', function(e) {
+                        // No hacer nada si se clickea el checkbox o el botón eliminar
+                        if (e.target.classList.contains('assignment-checkbox') || 
+                            e.target.classList.contains('remove-assignment-btn') ||
+                            e.target.closest('.remove-assignment-btn')) {
+                            return;
+                        }
+                        
+                        // Toggle del checkbox
+                        const checkbox = this.querySelector('.assignment-checkbox');
+                        checkbox.checked = !checkbox.checked;
+                        
+                        // Trigger change event para actualizar controles
+                        checkbox.dispatchEvent(new Event('change'));
+                        
+                        // Feedback visual
+                        if (checkbox.checked) {
+                            this.style.backgroundColor = '#e3f2fd';
+                            this.style.borderColor = '#2196f3';
+                        } else {
+                            this.style.backgroundColor = '#fff';
+                            this.style.borderColor = '#dee2e6';
+                        }
+                    });
                 });
                 
                 updateBatchControls(); // Actualizar estado inicial
