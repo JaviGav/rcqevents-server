@@ -266,8 +266,8 @@ def get_assignment_display_name(assignment_data, event_id=None):
         except:
             return f"ID: {indicativo_id}"
     
-    # Si indicativo_id es None, significa que es texto libre pero servicio_nombre no está disponible
-    if indicativo_id is None:
+    # Si indicativo_id es -1, significa que es texto libre pero servicio_nombre no está disponible
+    if indicativo_id == -1:
         assignment_id = assignment_data.get('id')
         
         # Primero, verificar si tenemos el texto en el cache
@@ -642,7 +642,7 @@ def create_incident_assignment(event_id, incident_id):
             servicio_nombre = None
         else:
             # Es texto libre (CME, GUB, nombres, etc.)
-            indicativo_id = None  # NULL para texto libre (más natural que -1)
+            indicativo_id = -1  # Valor especial para texto libre (no podemos usar NULL por restricción NOT NULL)
             servicio_nombre = indicativo_value
 
         # Usar SQL directo para insertar la asignación
@@ -691,7 +691,7 @@ def create_incident_assignment(event_id, incident_id):
             assignment_id = result.lastrowid
             
             # Si es texto libre y no se pudo guardar en servicio_nombre, agregarlo al cache
-            if indicativo_id is None and servicio_nombre and 'servicio_nombre' not in existing_columns:
+            if indicativo_id == -1 and servicio_nombre and 'servicio_nombre' not in existing_columns:
                 assignment_text_cache[assignment_id] = servicio_nombre
             
             # Crear respuesta manual
