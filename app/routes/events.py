@@ -350,7 +350,7 @@ def assignment_to_dict(a):
             # Determinar el nombre a mostrar
             if assignment_dict['servicio_nombre']:
                 assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
-            elif assignment_dict['indicativo_id']:
+            elif assignment_dict['indicativo_id'] and assignment_dict['indicativo_id'] > 0:
                 # Buscar el indicativo para obtener su nombre
                 try:
                     indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
@@ -549,7 +549,7 @@ def get_incident_assignments(event_id, incident_id):
                 # Determinar el nombre a mostrar
                 if assignment_dict['servicio_nombre']:
                     assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
-                elif assignment_dict['indicativo_id']:
+                elif assignment_dict['indicativo_id'] and assignment_dict['indicativo_id'] > 0:
                     # Buscar el indicativo para obtener su nombre
                     try:
                         indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
@@ -771,7 +771,7 @@ def update_incident_assignment(event_id, incident_id, assignment_id):
                 # Determinar el nombre a mostrar
                 if assignment_dict['servicio_nombre']:
                     assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
-                elif assignment_dict['indicativo_id']:
+                elif assignment_dict['indicativo_id'] and assignment_dict['indicativo_id'] > 0:
                     try:
                         indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
                         if indicativo:
