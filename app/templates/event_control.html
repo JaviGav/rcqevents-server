@@ -969,6 +969,27 @@ document.getElementById('incidentsTableBody').addEventListener('click', async fu
         const incidentId = e.target.dataset.id;
         openIncidentModalForEdit(incidentId);
     }
+    // Botón de Restaurar Incidente
+    else if (e.target.classList.contains('restore-incident-btn')) {
+        const incidentId = e.target.dataset.id;
+        if (confirm(`¿Estás seguro de que quieres restaurar el incidente ID ${incidentId}?`)) {
+            try {
+                const response = await fetch(`/events/${eventId}/incidents/${incidentId}/restore`, {
+                    method: 'POST',
+                });
+                const result = await response.json();
+                if (response.ok && result.status === 'success') {
+                    alert('Incidente restaurado exitosamente.');
+                    loadIncidents(); // Recargar la lista
+                } else {
+                    alert(`Error al restaurar incidente: ${result.message || 'Error desconocido'}`);
+                }
+            } catch (error) {
+                console.error('Error de red al restaurar incidente:', error);
+                alert('Error de red al intentar restaurar el incidente.');
+            }
+        }
+    }
     // Botón de Cargar Dirección en la tabla
     else if (e.target.classList.contains('load-address-btn')) {
         const incidentId = e.target.dataset.id;

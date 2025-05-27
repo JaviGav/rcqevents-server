@@ -20,7 +20,7 @@ def create_app(config_name='default'):
 
     # Importar modelos para que Alembic los vea y crear tablas si no existen
     with app.app_context():
-        from .models import user, event, indicativo # Asumiendo indicativo.py en app/models
+        from .models import user, event, indicativo, incident, incident_assignment, message
         db.create_all()
     
     # Registrar blueprints
