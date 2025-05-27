@@ -855,11 +855,58 @@ incidentTipoInput.addEventListener('change', function() {
     }
 });
 
-function setIncidentMarker(lat, lng) {
+async function setIncidentMarker(lat, lng) {
     if (incidentMarker) incidentMap.removeLayer(incidentMarker);
     incidentMarker = L.marker([lat, lng]).addTo(incidentMap);
     document.getElementById('incidentLat').value = lat;
     document.getElementById('incidentLng').value = lng;
+    
+    // Actualizar la dirección automáticamente
+    const addressDisplay = document.getElementById('incidentAddressDisplay');
+    addressDisplay.textContent = 'Obteniendo dirección...';
+    addressDisplay.style.color = '#666';
+    
+    try {
+        let searchQuery = `${lat},${lng}`;
+        const reverseUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+        const response = await fetch(reverseUrl);
+        
+        if (response.ok) {
+            const data = await response.json();
+            const address = data.address;
+            let displayAddress = '';
+            
+            if (address) {
+                const road = address.road || '';
+                const house_number = address.house_number || '';
+                const city = address.city || address.town || address.village || '';
+                
+                displayAddress = road;
+                if (house_number) {
+                    displayAddress += `, ${house_number}`;
+                }
+                if (city) {
+                    displayAddress += ` - ${city}`;
+                }
+                
+                if (!displayAddress) {
+                    displayAddress = data.display_name || 'Ubicación seleccionada';
+                }
+            } else {
+                displayAddress = data.display_name || 'Ubicación seleccionada';
+            }
+            
+            addressDisplay.textContent = displayAddress;
+            addressDisplay.style.color = '#333';
+        } else {
+            addressDisplay.textContent = 'Ubicación seleccionada (dirección no disponible)';
+            addressDisplay.style.color = '#999';
+        }
+    } catch (error) {
+        console.error('Error al obtener dirección:', error);
+        addressDisplay.textContent = 'Ubicación seleccionada';
+        addressDisplay.style.color = '#333';
+    }
 }
 
 // Función para poblar y abrir el modal de incidentes para edición
@@ -1213,9 +1260,8 @@ incidentSearchAddressBtn.addEventListener('click', async function() {
             
             if (incidentMap) {
                 incidentMap.setView([parsedLat, parsedLng], 16); // Centrar mapa y hacer zoom
-                setIncidentMarker(parsedLat, parsedLng); // Pone el marcador y actualiza campos Lat/Lng
+                await setIncidentMarker(parsedLat, parsedLng); // Pone el marcador y actualiza campos Lat/Lng y dirección
             }
-            document.getElementById('incidentAddressDisplay').textContent = display_name || 'Ubicación encontrada.'; // Actualizar display de dirección
             incidentAddressSearchInput.value = ''; // Limpiar input de búsqueda
         } else {
             alert('Dirección no encontrada. Prueba con más detalles o una dirección diferente.');
@@ -1274,7 +1320,7 @@ clearCoordsBtn.addEventListener('click', function() {
 });
 
 // Aplicar coordenadas
-applyCoordsBtn.addEventListener('click', function() {
+applyCoordsBtn.addEventListener('click', async function() {
     const lat = parseFloat(coordsLatInput.value);
     const lng = parseFloat(coordsLngInput.value);
     
@@ -1285,7 +1331,7 @@ applyCoordsBtn.addEventListener('click', function() {
         // Actualizar mapa y marcador
         if (incidentMap) {
             incidentMap.setView([lat, lng], 15);
-            setIncidentMarker(lat, lng);
+            await setIncidentMarker(lat, lng); // Esperar a que se actualice la dirección
         }
         
         coordsModal.style.display = 'none';
