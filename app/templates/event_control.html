@@ -995,7 +995,14 @@ function renderIncidents(incidents) {
         }
 
         row.insertCell().textContent = incident.incident_number;
-        row.insertCell().textContent = incident.tipo;
+        
+        // Celda de tipo con dorsal si es médico
+        const tipoCell = row.insertCell();
+        let tipoText = incident.tipo;
+        if (incident.tipo === '🚑 Asistencia Médica' && incident.dorsal) {
+            tipoText += ` (Dorsal: ${incident.dorsal})`;
+        }
+        tipoCell.textContent = tipoText;
         
         // Celda de estado con colores y clickable
         const statusCell = row.insertCell();
@@ -1290,39 +1297,78 @@ incidentAddressSearchInput.addEventListener('keydown', function(e) {
     }
 });
 
-// --- FUNCIONALIDAD GLOBAL: CERRAR MODALES CON ESCAPE ---
+// --- FUNCIONALIDAD GLOBAL: CERRAR MODALES CON ESCAPE Y CLICK FUERA ---
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        // Cerrar modal de incidentes
-        if (incidentModal.style.display === 'flex') {
-            incidentModal.style.display = 'none';
-            if (incidentMarker) {
-                incidentMap.removeLayer(incidentMarker);
-                incidentMarker = null;
-            }
-            editingIncidentId = null;
+        closeAllModals();
+    }
+});
+
+// Función para cerrar todos los modales
+function closeAllModals() {
+    // Cerrar modal de incidentes
+    if (incidentModal.style.display === 'flex') {
+        incidentModal.style.display = 'none';
+        if (incidentMarker) {
+            incidentMap.removeLayer(incidentMarker);
+            incidentMarker = null;
         }
-        
-        // Cerrar modal de cambio de estado
-        if (statusChangeModal.style.display === 'flex') {
-            statusChangeModal.style.display = 'none';
-            currentIncidentForStatusChange = null;
+        editingIncidentId = null;
+    }
+    
+    // Cerrar modal de cambio de estado
+    if (statusChangeModal.style.display === 'flex') {
+        statusChangeModal.style.display = 'none';
+        currentIncidentForStatusChange = null;
+    }
+    
+    // Cerrar modal de coordenadas
+    if (coordsModal.style.display === 'flex') {
+        coordsModal.style.display = 'none';
+    }
+    
+    // Cerrar modal de ubicación manual
+    if (locationModal.style.display === 'flex') {
+        locationModal.style.display = 'none';
+    }
+    
+    // Cerrar modal de asignar servicio
+    if (assignServiceModal.style.display === 'flex') {
+        assignServiceModal.style.display = 'none';
+    }
+}
+
+// Click fuera del modal para cerrar
+document.addEventListener('click', function(e) {
+    // Modal de incidentes
+    if (incidentModal.style.display === 'flex' && e.target === incidentModal) {
+        incidentModal.style.display = 'none';
+        if (incidentMarker) {
+            incidentMap.removeLayer(incidentMarker);
+            incidentMarker = null;
         }
-        
-        // Cerrar modal de coordenadas
-        if (coordsModal.style.display === 'flex') {
-            coordsModal.style.display = 'none';
-        }
-        
-        // Cerrar modal de ubicación manual
-        if (locationModal.style.display === 'flex') {
-            locationModal.style.display = 'none';
-        }
-        
-        // Cerrar modal de asignar servicio
-        if (assignServiceModal.style.display === 'flex') {
-            assignServiceModal.style.display = 'none';
-        }
+        editingIncidentId = null;
+    }
+    
+    // Modal de cambio de estado
+    if (statusChangeModal.style.display === 'flex' && e.target === statusChangeModal) {
+        statusChangeModal.style.display = 'none';
+        currentIncidentForStatusChange = null;
+    }
+    
+    // Modal de coordenadas
+    if (coordsModal.style.display === 'flex' && e.target === coordsModal) {
+        coordsModal.style.display = 'none';
+    }
+    
+    // Modal de ubicación manual
+    if (locationModal.style.display === 'flex' && e.target === locationModal) {
+        locationModal.style.display = 'none';
+    }
+    
+    // Modal de asignar servicio
+    if (assignServiceModal.style.display === 'flex' && e.target === assignServiceModal) {
+        assignServiceModal.style.display = 'none';
     }
 });
 
