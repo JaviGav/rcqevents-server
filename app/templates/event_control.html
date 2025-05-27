@@ -28,12 +28,7 @@
             border-radius: 4px;
             box-sizing: border-box; /* Para que padding no afecte el width total */
         }
-        .datalist-arrow {
-            margin-left: -20px; /* Ajusta para superponer o colocar cerca del input */
-            cursor: default; /* Para que no parezca clickable si no lo es */
-            display: inline-block; /* Para que esté en la misma línea */
-            /* Podrías añadir font-size, color, etc. */
-        }
+
         .deleted-incident td {
             text-decoration: line-through;
             color: #95a5a6;
@@ -225,19 +220,18 @@
             <form id="incidentForm">
                 <div class="form-group">
                     <label for="incidentTipo">Tipo de incidente:</label>
-                    <input type="text" id="incidentTipo" name="tipo" list="tipoSugerencias" required style="width:90%;" placeholder="Escribe o selecciona tipo...">
-                    <span class="datalist-arrow">▼</span>
-                    <datalist id="tipoSugerencias">
-                        <option value="🚑 Asistencia Médica">
-                        <option value="🚧 Incidencia Circuito">
-                        <option value="👥 Apoyo al Compañero">
-                        <option value=" भीड़ Afluencia Excesiva">
-                        <option value="🔥 Incendio">
-                        <option value="💧 Fuga de Agua/Inundación">
-                        <option value="🛠️ Avería Técnica">
-                        <option value="🗣️ Altercado/Discusión">
-                        <option value="❓ Otro (General)">
-                    </datalist>
+                    <select id="incidentTipo" name="tipo" required style="width:90%;">
+                        <option value="">-- Selecciona tipo de incidente --</option>
+                        <option value="🚑 Asistencia Médica">🚑 Asistencia Médica</option>
+                        <option value="🚧 Incidencia Circuito">🚧 Incidencia Circuito</option>
+                        <option value="👥 Apoyo al Compañero">👥 Apoyo al Compañero</option>
+                        <option value="👥 Afluencia Excesiva">👥 Afluencia Excesiva</option>
+                        <option value="🔥 Incendio">🔥 Incendio</option>
+                        <option value="💧 Fuga de Agua/Inundación">💧 Fuga de Agua/Inundación</option>
+                        <option value="🛠️ Avería Técnica">🛠️ Avería Técnica</option>
+                        <option value="🗣️ Altercado/Discusión">🗣️ Altercado/Discusión</option>
+                        <option value="❓ Otro (General)">❓ Otro (General)</option>
+                    </select>
                 </div>
                 <div class="form-group" id="dorsalGroup" style="display:none;">
                     <label for="incidentDorsal">Dorsal:</label>
@@ -253,16 +247,17 @@
                 </div>
                 <div class="form-group">
                     <label for="incidentReportadoPor">Reportado por:</label>
-                    <input type="text" id="incidentReportadoPor" name="reportado_por" list="reportadoSugerencias" style="width:90%;" placeholder="Escribe o selecciona quién reporta...">
-                    <span class="datalist-arrow">▼</span>
-                    <datalist id="reportadoSugerencias">
-                        <option value="CME">
-                        <option value="GUB">
-                        <option value="Servicios Médicos">
+                    <select id="incidentReportadoPor" name="reportado_por" style="width:90%;">
+                        <option value="">-- Selecciona quién reporta --</option>
+                        <option value="CME">CME</option>
+                        <option value="GUB">GUB</option>
+                        <option value="Servicios Médicos">Servicios Médicos</option>
+                        <option value="Público">Público</option>
+                        <option value="Seguridad">Seguridad</option>
                         {% for ind in indicativos %}
-                            <option value="{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}">
+                            <option value="{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}">{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}</option>
                         {% endfor %}
-                    </datalist>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Localización:</label>
