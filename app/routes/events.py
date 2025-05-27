@@ -259,7 +259,7 @@ def incident_to_dict(incident, fetch_address=False):
                 'incident_id': assignment.incident_id,
                 'indicativo_id': assignment.indicativo_id,
                 'estado_asignacion': assignment.estado_asignacion,
-                'fecha_creacion_asignacion': assignment.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if assignment.fecha_creacion_asignacion else None,
+                'fecha_creacion_asignacion': assignment.fecha_creacion_asignacion if isinstance(assignment.fecha_creacion_asignacion, str) else (assignment.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if assignment.fecha_creacion_asignacion else None),
             }
             
             # Intentar obtener servicio_nombre si existe la columna
@@ -272,7 +272,13 @@ def incident_to_dict(incident, fetch_address=False):
             for field in ['fecha_pre_avisado_asig', 'fecha_avisado_asig', 'fecha_en_camino_asig', 'fecha_en_lugar_asig', 'fecha_finalizado_asig']:
                 try:
                     value = getattr(assignment, field, None)
-                    assignment_dict[field] = value.strftime('%Y-%m-%d %H:%M:%S') if value else None
+                    if value:
+                        if isinstance(value, str):
+                            assignment_dict[field] = value
+                        else:
+                            assignment_dict[field] = value.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        assignment_dict[field] = None
                 except:
                     assignment_dict[field] = None
             
@@ -335,7 +341,7 @@ def assignment_to_dict(a):
                 'indicativo_id': a.indicativo_id,
                 'servicio_nombre': getattr(a, 'servicio_nombre', None),
                 'estado_asignacion': a.estado_asignacion,
-                'fecha_creacion_asignacion': a.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if a.fecha_creacion_asignacion else None,
+                'fecha_creacion_asignacion': a.fecha_creacion_asignacion if isinstance(a.fecha_creacion_asignacion, str) else (a.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if a.fecha_creacion_asignacion else None),
                 'fecha_pre_avisado_asig': getattr(a, 'fecha_pre_avisado_asig', None),
                 'fecha_avisado_asig': getattr(a, 'fecha_avisado_asig', None),
                 'fecha_en_camino_asig': getattr(a, 'fecha_en_camino_asig', None),
@@ -525,7 +531,7 @@ def get_incident_assignments(event_id, incident_id):
                     'incident_id': assignment.incident_id,
                     'indicativo_id': assignment.indicativo_id,
                     'estado_asignacion': assignment.estado_asignacion,
-                    'fecha_creacion_asignacion': assignment.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if assignment.fecha_creacion_asignacion else None,
+                    'fecha_creacion_asignacion': assignment.fecha_creacion_asignacion if isinstance(assignment.fecha_creacion_asignacion, str) else (assignment.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if assignment.fecha_creacion_asignacion else None),
                 }
                 
                 # Intentar obtener servicio_nombre si existe la columna
@@ -538,7 +544,13 @@ def get_incident_assignments(event_id, incident_id):
                 for field in ['fecha_pre_avisado_asig', 'fecha_avisado_asig', 'fecha_en_camino_asig', 'fecha_en_lugar_asig', 'fecha_finalizado_asig']:
                     try:
                         value = getattr(assignment, field, None)
-                        assignment_dict[field] = value.strftime('%Y-%m-%d %H:%M:%S') if value else None
+                        if value:
+                            if isinstance(value, str):
+                                assignment_dict[field] = value
+                            else:
+                                assignment_dict[field] = value.strftime('%Y-%m-%d %H:%M:%S')
+                        else:
+                            assignment_dict[field] = None
                     except:
                         assignment_dict[field] = None
                 
@@ -747,7 +759,7 @@ def update_incident_assignment(event_id, incident_id, assignment_id):
                     'incident_id': assignment_query.incident_id,
                     'indicativo_id': assignment_query.indicativo_id,
                     'estado_asignacion': assignment_query.estado_asignacion,
-                    'fecha_creacion_asignacion': assignment_query.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if assignment_query.fecha_creacion_asignacion else None,
+                    'fecha_creacion_asignacion': assignment_query.fecha_creacion_asignacion if isinstance(assignment_query.fecha_creacion_asignacion, str) else (assignment_query.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if assignment_query.fecha_creacion_asignacion else None),
                 }
                 
                 # Agregar campos opcionales
@@ -760,7 +772,13 @@ def update_incident_assignment(event_id, incident_id, assignment_id):
                 for fecha_col in estado_fecha_map.values():
                     try:
                         value = getattr(assignment_query, fecha_col, None)
-                        assignment_dict[fecha_col] = value.strftime('%Y-%m-%d %H:%M:%S') if value else None
+                        if value:
+                            if isinstance(value, str):
+                                assignment_dict[fecha_col] = value
+                            else:
+                                assignment_dict[fecha_col] = value.strftime('%Y-%m-%d %H:%M:%S')
+                        else:
+                            assignment_dict[fecha_col] = None
                     except:
                         assignment_dict[fecha_col] = None
                 
