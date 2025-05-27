@@ -922,8 +922,16 @@ function appendMessage(msg) {
             }
         });
     } else if (msg.content.type === 'assign_service') {
-        const gmaps = `https://maps.google.com/?q=${msg.content.lat},${msg.content.lng}`;
-        div.innerHTML += `<div class=\"content assign-service-msg\" style=\"background:#ffeaea;border-left:5px solid #e74c3c;padding:7px 10px;border-radius:4px;\">🏍️ <b>Servicio asignado:</b> ${msg.content.text}<br>📍 <a href='${gmaps}' target='_blank' style='color:#c0392b;text-decoration:underline;font-weight:bold;'>Ver ubicación en Google Maps</a></div>`;
+        let serviceContent = `<div class=\"content assign-service-msg\" style=\"background:#ffeaea;border-left:5px solid #e74c3c;padding:7px 10px;border-radius:4px;\">🏍️ <b>Servicio asignado:</b><br>${msg.content.text.replace(/\n/g, '<br>')}`;
+        
+        // Solo añadir enlace a Google Maps si hay coordenadas
+        if (msg.content.lat && msg.content.lng) {
+            const gmaps = `https://maps.google.com/?q=${msg.content.lat},${msg.content.lng}`;
+            serviceContent += `<br><br>📍 <a href='${gmaps}' target='_blank' style='color:#c0392b;text-decoration:underline;font-weight:bold;'>Ver ubicación en Google Maps</a>`;
+        }
+        
+        serviceContent += `</div>`;
+        div.innerHTML += serviceContent;
     } else {
         div.innerHTML += `<div class=\"content\">[${msg.content.type}]</div>`;
     }
