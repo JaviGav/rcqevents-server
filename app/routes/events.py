@@ -250,7 +250,6 @@ def incident_to_dict(incident, fetch_address=False):
             text("SELECT * FROM incident_assignments WHERE incident_id = :incident_id"),
             {"incident_id": incident.id}
         ).fetchall()
-        print(f"DEBUG: incident_to_dict - Consultando asignaciones para incident_id={incident.id}, encontradas: {len(assignments)}")
         
         for assignment in assignments:
             # Crear diccionario básico
@@ -520,9 +519,6 @@ def get_incident_assignments(event_id, incident_id):
                 text("SELECT * FROM incident_assignments WHERE incident_id = :incident_id"),
                 {"incident_id": incident_id}
             ).fetchall()
-            print(f"DEBUG: Consultando asignaciones para incident_id={incident_id}, encontradas: {len(assignments)}")
-            for assignment in assignments:
-                print(f"DEBUG: Asignación encontrada: id={assignment.id}, indicativo_id={assignment.indicativo_id}")
             
             for assignment in assignments:
                 # Crear diccionario manualmente para evitar problemas de esquema

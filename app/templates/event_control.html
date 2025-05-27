@@ -1469,8 +1469,6 @@ async function loadIncidents() {
         const result = await response.json();
         if (result.status === 'success') {
             allIncidents = result.incidents || [];
-            console.log('Incidentes cargados:', allIncidents.length, 'incidentes');
-            console.log('Primer incidente con asignaciones:', allIncidents.find(i => i.assignments && i.assignments.length > 0));
             filterAndSortIncidents(); // Aplicar filtros y ordenación
         } else {
             console.error('Error al cargar incidentes:', result.message);
@@ -1574,7 +1572,6 @@ async function loadCurrentAssignments(incidentId) {
         
         if (result.status === 'success') {
             const assignments = result.assignments || [];
-            console.log('Asignaciones cargadas para incidente', incidentId, ':', assignments);
             
             if (assignments.length === 0) {
                 currentAssignmentsDiv.innerHTML = '<em style="color:#666;">No hay asignaciones actuales</em>';
@@ -1756,7 +1753,6 @@ assignIncidentForm.addEventListener('submit', async function(e) {
         const result = await response.json();
         
         if (response.ok && result.status === 'success') {
-            console.log('Asignación creada:', result.assignment);
             alert('Asignación creada exitosamente!');
             // Recargar asignaciones actuales
             await loadCurrentAssignments(currentIncidentForAssignment);
@@ -1770,7 +1766,6 @@ assignIncidentForm.addEventListener('submit', async function(e) {
             // Recargar tabla de incidentes para mostrar nuevas asignaciones
             // Agregar un pequeño delay para asegurar que la base de datos se actualice
             setTimeout(() => {
-                console.log('Recargando incidentes después de crear asignación...');
                 loadIncidents();
             }, 500);
         } else {
