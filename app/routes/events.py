@@ -299,7 +299,60 @@ def incident_to_dict(incident, fetch_address=False):
     return data
 
 def assignment_to_dict(a):
-    return a.to_dict()
+    """Convierte una asignación a diccionario de manera segura"""
+    try:
+        return a.to_dict()
+    except Exception as e:
+        print(f"Error al convertir asignación {a.id} a dict: {e}")
+        # Fallback manual
+        try:
+            assignment_dict = {
+                'id': a.id,
+                'incident_id': a.incident_id,
+                'indicativo_id': a.indicativo_id,
+                'servicio_nombre': getattr(a, 'servicio_nombre', None),
+                'estado_asignacion': a.estado_asignacion,
+                'fecha_creacion_asignacion': a.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if a.fecha_creacion_asignacion else None,
+                'fecha_pre_avisado_asig': getattr(a, 'fecha_pre_avisado_asig', None),
+                'fecha_avisado_asig': getattr(a, 'fecha_avisado_asig', None),
+                'fecha_en_camino_asig': getattr(a, 'fecha_en_camino_asig', None),
+                'fecha_en_lugar_asig': getattr(a, 'fecha_en_lugar_asig', None),
+                'fecha_finalizado_asig': getattr(a, 'fecha_finalizado_asig', None),
+            }
+            
+            # Determinar el nombre a mostrar
+            if assignment_dict['servicio_nombre']:
+                assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
+            elif assignment_dict['indicativo_id']:
+                # Buscar el indicativo para obtener su nombre
+                try:
+                    indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
+                    if indicativo:
+                        assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
+                    else:
+                        assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
+                except:
+                    assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
+            else:
+                assignment_dict['indicativo_nombre'] = "Asignación sin nombre"
+            
+            return assignment_dict
+        except Exception as e2:
+            print(f"Error en fallback manual para asignación: {e2}")
+            return {
+                'id': getattr(a, 'id', None),
+                'incident_id': getattr(a, 'incident_id', None),
+                'indicativo_id': getattr(a, 'indicativo_id', None),
+                'servicio_nombre': None,
+                'indicativo_nombre': 'Error al cargar',
+                'estado_asignacion': getattr(a, 'estado_asignacion', 'desconocido'),
+                'fecha_creacion_asignacion': None,
+                'fecha_pre_avisado_asig': None,
+                'fecha_avisado_asig': None,
+                'fecha_en_camino_asig': None,
+                'fecha_en_lugar_asig': None,
+                'fecha_finalizado_asig': None,
+            }
 
 @bp.route('/<int:event_id>/incidents', methods=['GET'])
 def get_incidents(event_id):
@@ -429,13 +482,60 @@ def get_incident_assignments(event_id, incident_id):
         # Verificar que el incidente existe y pertenece al evento
         incident = Incident.query.filter_by(id=incident_id, event_id=event_id).first_or_404()
         
-        # Obtener todas las asignaciones del incidente
-        assignments = IncidentAssignment.query.filter_by(incident_id=incident_id).all()
-        
         assignments_data = []
-        for assignment in assignments:
-            # Usar el método to_dict del modelo que ya maneja servicios e indicativos
-            assignments_data.append(assignment.to_dict())
+        
+        # Intentar cargar asignaciones usando ORM primero
+        try:
+            assignments = IncidentAssignment.query.filter_by(incident_id=incident_id).all()
+            for assignment in assignments:
+                assignments_data.append(assignment.to_dict())
+        except Exception as e:
+            print(f"Error al cargar asignaciones con ORM: {e}")
+            # Fallback: cargar asignaciones manualmente con SQL directo
+            try:
+                from sqlalchemy import text
+                assignments = db.session.execute(
+                    text("SELECT * FROM incident_assignments WHERE incident_id = :incident_id"),
+                    {"incident_id": incident_id}
+                ).fetchall()
+                
+                for assignment in assignments:
+                    # Crear diccionario manualmente para evitar problemas de esquema
+                    assignment_dict = {
+                        'id': assignment.id,
+                        'incident_id': assignment.incident_id,
+                        'indicativo_id': assignment.indicativo_id,
+                        'servicio_nombre': getattr(assignment, 'servicio_nombre', None),
+                        'estado_asignacion': assignment.estado_asignacion,
+                        'fecha_creacion_asignacion': assignment.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if assignment.fecha_creacion_asignacion else None,
+                        'fecha_pre_avisado_asig': getattr(assignment, 'fecha_pre_avisado_asig', None),
+                        'fecha_avisado_asig': getattr(assignment, 'fecha_avisado_asig', None),
+                        'fecha_en_camino_asig': getattr(assignment, 'fecha_en_camino_asig', None),
+                        'fecha_en_lugar_asig': getattr(assignment, 'fecha_en_lugar_asig', None),
+                        'fecha_finalizado_asig': getattr(assignment, 'fecha_finalizado_asig', None),
+                    }
+                    
+                    # Determinar el nombre a mostrar
+                    if assignment_dict['servicio_nombre']:
+                        assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
+                    elif assignment_dict['indicativo_id']:
+                        # Buscar el indicativo para obtener su nombre
+                        try:
+                            indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
+                            if indicativo:
+                                assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
+                            else:
+                                assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
+                        except:
+                            assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
+                    else:
+                        assignment_dict['indicativo_nombre'] = "Asignación sin nombre"
+                    
+                    assignments_data.append(assignment_dict)
+                    
+            except Exception as e2:
+                print(f"Error al cargar asignaciones manualmente: {e2}")
+                return jsonify({'status': 'error', 'message': f'Error al cargar asignaciones: {str(e2)}'}), 500
         
         return jsonify({
             'status': 'success',
