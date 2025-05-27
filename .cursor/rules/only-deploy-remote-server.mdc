@@ -5,5 +5,7 @@ alwaysApply: true
 ---
 For the RCEVENTS-SERVER project do not execute anything on local, there is a deployment process when you push changes to the repository, where I can test the changes, also keep it in mind for changing the databse schema.
 
-
 This service runs in a ubuntu server
+
+
+To change the schema make a push for a file in /migrations and ask me to execute the db upgrade

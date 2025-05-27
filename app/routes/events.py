@@ -261,33 +261,22 @@ def load_assignment_text_cache():
         # Verificar qué columnas existen en la tabla
         columns_query = db.session.execute(text("PRAGMA table_info(incident_assignments)")).fetchall()
         existing_columns = [col[1] for col in columns_query]
-        current_app.logger.info(f"[CACHE] Columnas disponibles: {existing_columns}")
         
         # Si la columna servicio_nombre existe, cargar todas las asignaciones de texto libre
         if 'servicio_nombre' in existing_columns:
-            current_app.logger.info("[CACHE] Columna servicio_nombre encontrada, cargando asignaciones...")
             results = db.session.execute(
                 text("SELECT id, servicio_nombre FROM incident_assignments WHERE indicativo_id = -1 AND servicio_nombre IS NOT NULL")
             ).fetchall()
-            
-            current_app.logger.info(f"[CACHE] Encontradas {len(results)} asignaciones de texto libre en BD")
             
             for result in results:
                 assignment_id, servicio_nombre = result
                 if servicio_nombre and servicio_nombre.strip():
                     assignment_text_cache[assignment_id] = servicio_nombre
-                    current_app.logger.info(f"[CACHE] Cargado: ID={assignment_id}, texto='{servicio_nombre}'")
-            
-            current_app.logger.info(f"[CACHE] Total cargadas {len(assignment_text_cache)} asignaciones al cache")
-        else:
-            current_app.logger.info("[CACHE] Columna servicio_nombre no existe, cache iniciado vacío")
-            
+        
         cache_loaded = True
             
     except Exception as e:
         current_app.logger.error(f"[CACHE] Error al cargar cache inicial: {e}")
-        import traceback
-        traceback.print_exc()
 
 def get_assignment_display_name(assignment_data, event_id=None):
     """
@@ -318,15 +307,9 @@ def get_assignment_display_name(assignment_data, event_id=None):
     
     # Si indicativo_id es -1, significa que es texto libre
     if indicativo_id == -1:
-        current_app.logger.info(f"[DEBUG] Procesando texto libre para assignment_id={assignment_id}")
-        
         # Primero, verificar si tenemos el texto en el cache
         if assignment_id and assignment_id in assignment_text_cache:
-            cached_text = assignment_text_cache[assignment_id]
-            current_app.logger.info(f"[DEBUG] Encontrado en cache: '{cached_text}'")
-            return cached_text
-        
-        current_app.logger.info(f"[DEBUG] No encontrado en cache, buscando en BD...")
+            return assignment_text_cache[assignment_id]
         
         # Intentar recuperar el valor original desde la base de datos
         try:
@@ -338,7 +321,6 @@ def get_assignment_display_name(assignment_data, event_id=None):
                 
                 # Si la columna servicio_nombre existe, intentar obtenerla
                 if 'servicio_nombre' in existing_columns:
-                    current_app.logger.info(f"[DEBUG] Columna servicio_nombre existe, consultando BD...")
                     result = db.session.execute(
                         text("SELECT servicio_nombre FROM incident_assignments WHERE id = :assignment_id"),
                         {"assignment_id": assignment_id}
@@ -347,19 +329,12 @@ def get_assignment_display_name(assignment_data, event_id=None):
                     if result and result[0]:
                         # Actualizar el cache para futuras consultas
                         assignment_text_cache[assignment_id] = result[0]
-                        current_app.logger.info(f"[DEBUG] Recuperado de BD: '{result[0]}'")
                         return result[0]
-                    else:
-                        current_app.logger.info(f"[DEBUG] No se encontró servicio_nombre en BD para ID {assignment_id}")
-                else:
-                    current_app.logger.info(f"[DEBUG] Columna servicio_nombre no existe")
                 
                 # Si no existe la columna servicio_nombre, buscar en el cache persistente
-                # o devolver un mensaje más útil
                 if assignment_id in assignment_text_cache:
-                    cached_text = assignment_text_cache[assignment_id]
-                    current_app.logger.info(f"[DEBUG] Segundo intento en cache exitoso: '{cached_text}'")
-                    return cached_text
+                    return assignment_text_cache[assignment_id]
+                    
         except Exception as e:
             current_app.logger.error(f"Error al recuperar nombre de asignación {assignment_id}: {e}")
         
@@ -757,7 +732,6 @@ def create_incident_assignment(event_id, incident_id):
             # Esto es especialmente importante cuando la columna servicio_nombre no existe
             if indicativo_id == -1 and servicio_nombre:
                 assignment_text_cache[assignment_id] = servicio_nombre
-                current_app.logger.info(f"[CACHE] Guardado texto libre: assignment_id={assignment_id}, texto='{servicio_nombre}'")
             
             # Crear respuesta manual
             assignment_dict = {
