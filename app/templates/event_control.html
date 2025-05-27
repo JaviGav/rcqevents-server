@@ -271,11 +271,11 @@
                         <button type="button" id="incidentSearchAddressBtn" style="padding:8px 10px;">Buscar</button>
                     </div>
                     <div id="incidentMap" style="height:200px; width:100%; border-radius:8px; margin-bottom:8px;"></div>
-                    <div id="incidentAddressDisplay" style="font-size:0.9em; color:#555; margin-bottom:5px; min-height:1.2em;"></div>
-                    <label for="incidentLat">Latitud:</label>
-                    <input type="number" id="incidentLat" name="lat" step="any" style="width:40%;">
-                    <label for="incidentLng">Longitud:</label>
-                    <input type="number" id="incidentLng" name="lng" step="any" style="width:40%;">
+                    <div id="incidentAddressDisplay" style="font-size:0.9em; color:#555; margin-bottom:8px; min-height:1.2em;"></div>
+                    <button type="button" id="showCoordsBtn" style="background:#6c757d; color:#fff; padding:6px 12px; border:none; border-radius:4px; font-size:12px; cursor:pointer;">⚙️ Coordenadas Avanzadas</button>
+                    <!-- Campos ocultos para lat/lng -->
+                    <input type="hidden" id="incidentLat" name="lat">
+                    <input type="hidden" id="incidentLng" name="lng">
                 </div>
                 <div class="form-group">
                     <label for="incidentEstado">Estado:</label>
@@ -327,8 +327,38 @@
                     </div>
                 </button>
             </div>
-        </div>
-    </div>
+                 </div>
+     </div>
+     
+     <!-- Modal de coordenadas avanzadas -->
+     <div id="coordsModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:2100; align-items:center; justify-content:center;">
+         <div style="background:#fff; border-radius:8px; max-width:450px; width:95vw; margin:40px auto; padding:20px; position:relative;">
+             <button id="closeCoordsModal" style="position:absolute; top:10px; right:10px; background:#e74c3c; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:18px; cursor:pointer;">&times;</button>
+             <h3>Coordenadas Avanzadas</h3>
+             <p style="color:#666; font-size:14px; margin-bottom:15px;">Ajusta manualmente las coordenadas del incidente si es necesario.</p>
+             
+             <div style="margin-bottom:15px;">
+                 <label for="coordsLatInput" style="display:block; margin-bottom:5px; font-weight:bold;">Latitud:</label>
+                 <input type="number" id="coordsLatInput" step="any" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="Ej: 41.3874">
+             </div>
+             
+             <div style="margin-bottom:15px;">
+                 <label for="coordsLngInput" style="display:block; margin-bottom:5px; font-weight:bold;">Longitud:</label>
+                 <input type="number" id="coordsLngInput" step="any" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="Ej: 2.1686">
+             </div>
+             
+             <div style="margin-bottom:15px;">
+                 <small style="color:#666;">
+                     💡 <strong>Tip:</strong> También puedes hacer clic en el mapa principal para establecer las coordenadas automáticamente.
+                 </small>
+             </div>
+             
+             <div style="display:flex; gap:10px; justify-content:flex-end;">
+                 <button type="button" id="clearCoordsBtn" style="background:#6c757d; color:#fff; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">Limpiar</button>
+                 <button type="button" id="applyCoordsBtn" style="background:#007bff; color:#fff; padding:8px 16px; border:none; border-radius:4px; cursor:pointer;">Aplicar</button>
+             </div>
+         </div>
+     </div>
 </div>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -1203,6 +1233,64 @@ incidentAddressSearchInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
         e.preventDefault(); // Evitar submit del formulario si estuviera dentro de uno
         incidentSearchAddressBtn.click(); // Simular clic en el botón de búsqueda
+    }
+});
+
+// --- MODAL DE COORDENADAS AVANZADAS ---
+const showCoordsBtn = document.getElementById('showCoordsBtn');
+const coordsModal = document.getElementById('coordsModal');
+const closeCoordsModal = document.getElementById('closeCoordsModal');
+const coordsLatInput = document.getElementById('coordsLatInput');
+const coordsLngInput = document.getElementById('coordsLngInput');
+const clearCoordsBtn = document.getElementById('clearCoordsBtn');
+const applyCoordsBtn = document.getElementById('applyCoordsBtn');
+
+// Abrir modal de coordenadas
+showCoordsBtn.addEventListener('click', function() {
+    // Poblar con valores actuales
+    coordsLatInput.value = document.getElementById('incidentLat').value || '';
+    coordsLngInput.value = document.getElementById('incidentLng').value || '';
+    coordsModal.style.display = 'flex';
+});
+
+// Cerrar modal de coordenadas
+closeCoordsModal.addEventListener('click', function() {
+    coordsModal.style.display = 'none';
+});
+
+// Limpiar coordenadas
+clearCoordsBtn.addEventListener('click', function() {
+    coordsLatInput.value = '';
+    coordsLngInput.value = '';
+    document.getElementById('incidentLat').value = '';
+    document.getElementById('incidentLng').value = '';
+    // Limpiar marcador del mapa
+    if (incidentMarker) {
+        incidentMap.removeLayer(incidentMarker);
+        incidentMarker = null;
+    }
+    document.getElementById('incidentAddressDisplay').textContent = '';
+    coordsModal.style.display = 'none';
+});
+
+// Aplicar coordenadas
+applyCoordsBtn.addEventListener('click', function() {
+    const lat = parseFloat(coordsLatInput.value);
+    const lng = parseFloat(coordsLngInput.value);
+    
+    if (!isNaN(lat) && !isNaN(lng)) {
+        document.getElementById('incidentLat').value = lat;
+        document.getElementById('incidentLng').value = lng;
+        
+        // Actualizar mapa y marcador
+        if (incidentMap) {
+            incidentMap.setView([lat, lng], 15);
+            setIncidentMarker(lat, lng);
+        }
+        
+        coordsModal.style.display = 'none';
+    } else {
+        alert('Por favor, introduce valores válidos para latitud y longitud.');
     }
 });
 
