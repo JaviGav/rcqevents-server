@@ -892,6 +892,9 @@ addIncidentBtn.addEventListener('click', function() {
     document.getElementById('reportadoOtroGroup').style.display = 'none';
     document.getElementById('incidentTipoOtro').required = false;
     document.getElementById('incidentReportadoOtro').required = false;
+    // Limpiar explícitamente los campos de texto libre
+    document.getElementById('incidentTipoOtro').value = '';
+    document.getElementById('incidentReportadoOtro').value = '';
     editingIncidentId = null; // Asegurarse de que no estamos en modo edición
     document.getElementById('incidentLat').value = ''; // Limpiar campos de lat/lng
     document.getElementById('incidentLng').value = '';
@@ -922,6 +925,18 @@ addIncidentBtn.addEventListener('click', function() {
 
 closeIncidentModal.addEventListener('click', function() {
     incidentModal.style.display = 'none';
+    // Limpiar campos de texto libre
+    document.getElementById('tipoOtroGroup').style.display = 'none';
+    document.getElementById('reportadoOtroGroup').style.display = 'none';
+    document.getElementById('incidentTipoOtro').value = '';
+    document.getElementById('incidentReportadoOtro').value = '';
+    document.getElementById('incidentTipoOtro').required = false;
+    document.getElementById('incidentReportadoOtro').required = false;
+    editingIncidentId = null;
+    if (incidentMarker) {
+        incidentMap.removeLayer(incidentMarker);
+        incidentMarker = null;
+    }
 });
 
 incidentTipoInput.addEventListener('change', function() {
@@ -1014,6 +1029,14 @@ async function setIncidentMarker(lat, lng) {
 // Función para poblar y abrir el modal de incidentes para edición
 async function openIncidentModalForEdit(incidentId) {
     try {
+        // Limpiar campos de texto libre antes de cargar datos
+        document.getElementById('tipoOtroGroup').style.display = 'none';
+        document.getElementById('reportadoOtroGroup').style.display = 'none';
+        document.getElementById('incidentTipoOtro').value = '';
+        document.getElementById('incidentReportadoOtro').value = '';
+        document.getElementById('incidentTipoOtro').required = false;
+        document.getElementById('incidentReportadoOtro').required = false;
+        
         const response = await fetch(`/events/${eventId}/incidents/${incidentId}`);
         if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
         const result = await response.json();
@@ -1604,6 +1627,8 @@ function closeAllModals() {
         // Limpiar campos de texto libre
         document.getElementById('tipoOtroGroup').style.display = 'none';
         document.getElementById('reportadoOtroGroup').style.display = 'none';
+        document.getElementById('incidentTipoOtro').value = '';
+        document.getElementById('incidentReportadoOtro').value = '';
         document.getElementById('incidentTipoOtro').required = false;
         document.getElementById('incidentReportadoOtro').required = false;
     }
@@ -1643,6 +1668,8 @@ document.addEventListener('click', function(e) {
         // Limpiar campos de texto libre
         document.getElementById('tipoOtroGroup').style.display = 'none';
         document.getElementById('reportadoOtroGroup').style.display = 'none';
+        document.getElementById('incidentTipoOtro').value = '';
+        document.getElementById('incidentReportadoOtro').value = '';
         document.getElementById('incidentTipoOtro').required = false;
         document.getElementById('incidentReportadoOtro').required = false;
     }
