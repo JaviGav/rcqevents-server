@@ -453,18 +453,22 @@
                  <h3 style="margin-bottom:15px;">Nueva Asignación:</h3>
                  <form id="assignIncidentForm">
                      <div style="margin-bottom:15px;">
-                         <label for="assignIndicativoInput" style="display:block; margin-bottom:5px; font-weight:bold;">Asignar a:</label>
-                         <input type="text" id="assignIndicativoInput" list="assignIndicativoOptions" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="Escribe o selecciona a quién asignar...">
-                         <datalist id="assignIndicativoOptions">
+                         <label for="assignIndicativoSelect" style="display:block; margin-bottom:5px; font-weight:bold;">Asignar a:</label>
+                         <select id="assignIndicativoSelect" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                             <option value="">-- Selecciona a quién asignar --</option>
                              <option value="CME">CME</option>
                              <option value="GUB">GUB</option>
                              <option value="Servicios Médicos">Servicios Médicos</option>
                              <option value="Seguridad">Seguridad</option>
                              {% for ind in indicativos %}
-                                 <option value="{{ ind.id }}">{{ ind.indicativo }} ({{ ind.nombre or 'Sin nombre' }})</option>
+                                 <option value="{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}">{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}</option>
                              {% endfor %}
-                         </datalist>
-                         <small style="color:#666; font-size:12px;">💡 Puedes escribir cualquier nombre o seleccionar de las opciones</small>
+                             <option value="Otro">Otro (especificar)</option>
+                         </select>
+                     </div>
+                     <div style="margin-bottom:15px;" id="assignOtroGroup" style="display:none;">
+                         <label for="assignOtro" style="display:block; margin-bottom:5px; font-weight:bold;">Especifica a quién asignar:</label>
+                         <input type="text" id="assignOtro" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="Nombre o descripción de a quién asignar...">
                      </div>
                      
                      <div style="margin-bottom:15px;">
@@ -1540,6 +1544,10 @@ async function openAssignIncidentModal(incidentId) {
             
             // Limpiar formulario
             assignIncidentForm.reset();
+            document.getElementById('assignIndicativoSelect').value = '';
+            document.getElementById('assignOtro').value = '';
+            document.getElementById('assignOtroGroup').style.display = 'none';
+            document.getElementById('assignOtro').required = false;
             document.getElementById('assignStatusSelect').value = 'avisado';
             
             assignIncidentModal.style.display = 'flex';
@@ -1701,14 +1709,35 @@ closeAssignmentStatusModal.addEventListener('click', function() {
     currentAssignmentForStatusChange = null;
 });
 
+// Event listener para "Asignar a" - mostrar campo libre si se selecciona "Otro"
+document.getElementById('assignIndicativoSelect').addEventListener('change', function() {
+    const assignOtroGroup = document.getElementById('assignOtroGroup');
+    const assignOtroInput = document.getElementById('assignOtro');
+    
+    if (this.value === 'Otro') {
+        assignOtroGroup.style.display = 'block';
+        assignOtroInput.required = true;
+    } else {
+        assignOtroGroup.style.display = 'none';
+        assignOtroInput.required = false;
+        assignOtroInput.value = '';
+    }
+});
+
 // Event listener para el formulario de asignación
 assignIncidentForm.addEventListener('submit', async function(e) {
     e.preventDefault();
     
     if (!currentIncidentForAssignment) return;
     
+    // Determinar el valor final para asignar
+    let assignedTo = document.getElementById('assignIndicativoSelect').value;
+    if (assignedTo === 'Otro') {
+        assignedTo = document.getElementById('assignOtro').value;
+    }
+    
     const formData = {
-        indicativo_id: document.getElementById('assignIndicativoInput').value,
+        indicativo_id: assignedTo,
         estado_asignacion: document.getElementById('assignStatusSelect').value
     };
     
@@ -1729,7 +1758,10 @@ assignIncidentForm.addEventListener('submit', async function(e) {
             await loadCurrentAssignments(currentIncidentForAssignment);
             // Limpiar formulario
             assignIncidentForm.reset();
-            document.getElementById('assignIndicativoInput').value = '';
+            document.getElementById('assignIndicativoSelect').value = '';
+            document.getElementById('assignOtro').value = '';
+            document.getElementById('assignOtroGroup').style.display = 'none';
+            document.getElementById('assignOtro').required = false;
             document.getElementById('assignStatusSelect').value = 'avisado';
             // Recargar tabla de incidentes para mostrar nuevas asignaciones
             // Agregar un pequeño delay para asegurar que la base de datos se actualice

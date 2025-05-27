@@ -585,27 +585,25 @@ def create_incident_assignment(event_id, incident_id):
         now = datetime.utcnow()
         nuevo_estado_asignacion = data.get('estado_asignacion', 'pre-avisado')
         
-        # Determinar si es un indicativo del evento (número) o texto libre
-        indicativo_value = data['indicativo_id']
+        # Determinar si es un indicativo del evento o texto libre
+        indicativo_value = str(data['indicativo_id']).strip()
         
-        try:
-            # Si es un número, verificar si es un indicativo válido del evento
-            potential_id = int(indicativo_value)
-            # Verificar que el indicativo existe en este evento
-            indicativo_exists = Indicativo.query.filter_by(id=potential_id, event_id=event_id).first()
-            if indicativo_exists:
-                # Es un indicativo válido del evento
-                indicativo_id = potential_id
-                servicio_nombre = None
-            else:
-                # Es un número pero no corresponde a un indicativo del evento
-                # Tratarlo como texto libre
-                indicativo_id = -1  # Valor especial para texto libre
-                servicio_nombre = str(indicativo_value)
-        except (ValueError, TypeError):
-            # No es un número, es texto libre (CME, GUB, nombres, etc.)
+        # Buscar si es un indicativo del evento por nombre (formato: "INDICATIVO (nombre)")
+        indicativo_found = None
+        for indicativo in Indicativo.query.filter_by(event_id=event_id).all():
+            indicativo_display = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
+            if indicativo_display == indicativo_value:
+                indicativo_found = indicativo
+                break
+        
+        if indicativo_found:
+            # Es un indicativo válido del evento
+            indicativo_id = indicativo_found.id
+            servicio_nombre = None
+        else:
+            # Es texto libre (CME, GUB, nombres, etc.)
             indicativo_id = -1  # Valor especial para texto libre
-            servicio_nombre = str(indicativo_value)
+            servicio_nombre = indicativo_value
 
         # Usar SQL directo para insertar la asignación
         try:
