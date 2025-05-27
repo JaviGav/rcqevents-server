@@ -810,9 +810,31 @@ def update_incident_assignment(event_id, incident_id, assignment_id):
 
 @bp.route('/<int:event_id>/incidents/<int:incident_id>/assignments/<int:assignment_id>', methods=['DELETE'])
 def delete_incident_assignment(event_id, incident_id, assignment_id):
-    assignment = IncidentAssignment.query.filter_by(id=assignment_id, incident_id=incident_id).first_or_404()
-    db.session.delete(assignment)
-    db.session.commit()
-    return jsonify({'status': 'success', 'message': 'Asignación eliminada'})
+    try:
+        # Usar SQL directo para evitar problemas de esquema
+        from sqlalchemy import text
+        
+        # Verificar que la asignación existe
+        assignment_query = db.session.execute(
+            text("SELECT * FROM incident_assignments WHERE id = :assignment_id AND incident_id = :incident_id"),
+            {'assignment_id': assignment_id, 'incident_id': incident_id}
+        ).fetchone()
+        
+        if not assignment_query:
+            return jsonify({'status': 'error', 'message': 'Asignación no encontrada'}), 404
+        
+        # Eliminar la asignación
+        db.session.execute(
+            text("DELETE FROM incident_assignments WHERE id = :assignment_id AND incident_id = :incident_id"),
+            {'assignment_id': assignment_id, 'incident_id': incident_id}
+        )
+        db.session.commit()
+        
+        return jsonify({'status': 'success', 'message': 'Asignación eliminada'})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error al eliminar asignación: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # Fin del archivo
