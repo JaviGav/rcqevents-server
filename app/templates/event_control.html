@@ -1734,7 +1734,10 @@ assignIncidentForm.addEventListener('submit', async function(e) {
             assignIncidentForm.reset();
             document.getElementById('assignStatusSelect').value = 'avisado';
             // Recargar tabla de incidentes para mostrar nuevas asignaciones
-            loadIncidents();
+            // Agregar un pequeño delay para asegurar que la base de datos se actualice
+            setTimeout(() => {
+                loadIncidents();
+            }, 500);
         } else {
             alert(`Error al crear asignación: ${result.message || 'Error desconocido'}`);
         }

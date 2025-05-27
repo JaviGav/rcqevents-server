@@ -256,20 +256,46 @@ def incident_to_dict(incident, fetch_address=False):
                 {"incident_id": incident.id}
             ).fetchall()
             for assignment in assignments:
-                assignments_data.append({
+                # Crear diccionario básico
+                assignment_dict = {
                     'id': assignment.id,
                     'incident_id': assignment.incident_id,
                     'indicativo_id': assignment.indicativo_id,
-                    'servicio_nombre': getattr(assignment, 'servicio_nombre', None),
-                    'indicativo_nombre': f"ID: {assignment.indicativo_id}" if assignment.indicativo_id else getattr(assignment, 'servicio_nombre', 'Sin nombre'),
                     'estado_asignacion': assignment.estado_asignacion,
                     'fecha_creacion_asignacion': assignment.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if assignment.fecha_creacion_asignacion else None,
-                    'fecha_pre_avisado_asig': getattr(assignment, 'fecha_pre_avisado_asig', None),
-                    'fecha_avisado_asig': getattr(assignment, 'fecha_avisado_asig', None),
-                    'fecha_en_camino_asig': getattr(assignment, 'fecha_en_camino_asig', None),
-                    'fecha_en_lugar_asig': getattr(assignment, 'fecha_en_lugar_asig', None),
-                    'fecha_finalizado_asig': getattr(assignment, 'fecha_finalizado_asig', None),
-                })
+                }
+                
+                # Intentar obtener servicio_nombre si existe la columna
+                try:
+                    assignment_dict['servicio_nombre'] = getattr(assignment, 'servicio_nombre', None)
+                except:
+                    assignment_dict['servicio_nombre'] = None
+                
+                # Intentar obtener fechas adicionales si existen
+                for field in ['fecha_pre_avisado_asig', 'fecha_avisado_asig', 'fecha_en_camino_asig', 'fecha_en_lugar_asig', 'fecha_finalizado_asig']:
+                    try:
+                        value = getattr(assignment, field, None)
+                        assignment_dict[field] = value.strftime('%Y-%m-%d %H:%M:%S') if value else None
+                    except:
+                        assignment_dict[field] = None
+                
+                # Determinar el nombre a mostrar (misma lógica que otros endpoints)
+                if assignment_dict['servicio_nombre']:
+                    assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
+                elif assignment_dict['indicativo_id']:
+                    # Buscar el indicativo para obtener su nombre
+                    try:
+                        indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
+                        if indicativo:
+                            assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
+                        else:
+                            assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
+                    except:
+                        assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
+                else:
+                    assignment_dict['indicativo_nombre'] = "Asignación sin nombre"
+                
+                assignments_data.append(assignment_dict)
         except Exception as e2:
             print(f"Error al cargar asignaciones manualmente: {e2}")
     
@@ -568,7 +594,9 @@ def create_incident_assignment(event_id, incident_id):
             servicio_nombre = None
         except (ValueError, TypeError):
             # Si no es un número, es un servicio
-            indicativo_id = None
+            # Para servicios, usamos un valor especial en indicativo_id (ej: -1) 
+            # y guardamos el nombre real en servicio_nombre
+            indicativo_id = -1  # Valor especial para servicios
             servicio_nombre = str(indicativo_value)
 
         # Usar SQL directo para insertar la asignación
@@ -580,8 +608,13 @@ def create_incident_assignment(event_id, incident_id):
             existing_columns = [col[1] for col in columns_query]
             
             # Construir la consulta de inserción basada en las columnas existentes
-            base_columns = ['incident_id', 'indicativo_id', 'estado_asignacion', 'fecha_creacion_asignacion']
-            base_values = [incident.id, indicativo_id, nuevo_estado_asignacion, now]
+            base_columns = ['incident_id', 'estado_asignacion', 'fecha_creacion_asignacion']
+            base_values = [incident.id, nuevo_estado_asignacion, now]
+            
+            # Solo agregar indicativo_id si no es un servicio (valor especial -1)
+            if indicativo_id != -1:
+                base_columns.append('indicativo_id')
+                base_values.append(indicativo_id)
             
             # Agregar servicio_nombre si la columna existe
             if 'servicio_nombre' in existing_columns and servicio_nombre:
@@ -620,7 +653,7 @@ def create_incident_assignment(event_id, incident_id):
             assignment_dict = {
                 'id': assignment_id,
                 'incident_id': incident.id,
-                'indicativo_id': indicativo_id,
+                'indicativo_id': indicativo_id if indicativo_id != -1 else None,
                 'servicio_nombre': servicio_nombre,
                 'estado_asignacion': nuevo_estado_asignacion,
                 'fecha_creacion_asignacion': now.strftime('%Y-%m-%d %H:%M:%S'),
@@ -636,7 +669,7 @@ def create_incident_assignment(event_id, incident_id):
             # Determinar el nombre a mostrar
             if servicio_nombre:
                 assignment_dict['indicativo_nombre'] = servicio_nombre
-            elif indicativo_id:
+            elif indicativo_id and indicativo_id != -1:
                 try:
                     indicativo = Indicativo.query.get(indicativo_id)
                     if indicativo:
