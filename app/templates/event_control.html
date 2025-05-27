@@ -1576,8 +1576,8 @@ function renderIncidents(incidents) {
                     const statusText = getStatusText(assignment.estado_asignacion);
                     const statusColors = getStatusColors(assignment.estado_asignacion);
                     
-                    if (index > 0) assignmentsHtml += '<br>';
-                    assignmentsHtml += `
+                    if (index > 0) html += '<br>';
+                    html += `
                         <div class="assignment-status-badge" 
                              data-assignment-id="${assignment.id}" 
                              data-assignment-name="${assignment.indicativo_nombre}" 
@@ -1596,7 +1596,7 @@ function renderIncidents(incidents) {
                         </div>
                     `;
                 });
-                assignmentsCell.innerHTML = assignmentsHtml;
+                assignmentsCell.innerHTML = html;
             } else {
                 assignmentsCell.innerHTML = '<em style="color:#999;">Sin Ind. Activos</em>';
             }
