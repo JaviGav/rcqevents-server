@@ -27,6 +27,32 @@ class IncidentAssignment(db.Model):
             nombre_asignado = self.servicio_nombre
         elif self.indicativo:
             nombre_asignado = f"{self.indicativo.indicativo} ({self.indicativo.nombre})" if self.indicativo.nombre else self.indicativo.indicativo
+        elif self.indicativo_id == -1:
+            # Caso especial: indicativo_id = -1 significa texto libre, pero servicio_nombre puede ser None por problemas de esquema
+            # Intentar recuperar el valor original desde la base de datos
+            try:
+                from sqlalchemy import text
+                from app.extensions import db
+                result = db.session.execute(
+                    text("SELECT * FROM incident_assignments WHERE id = :assignment_id"),
+                    {"assignment_id": self.id}
+                ).fetchone()
+                
+                if result:
+                    # Intentar obtener servicio_nombre si la columna existe
+                    try:
+                        servicio_nombre = getattr(result, 'servicio_nombre', None)
+                        if servicio_nombre:
+                            nombre_asignado = servicio_nombre
+                        else:
+                            nombre_asignado = "Asignación personalizada"
+                    except:
+                        nombre_asignado = "Asignación personalizada"
+                else:
+                    nombre_asignado = "Texto libre"
+            except Exception as e:
+                print(f"Error al recuperar nombre de asignación en to_dict: {e}")
+                nombre_asignado = "Texto libre"
         else:
             nombre_asignado = "Asignación sin nombre"
             

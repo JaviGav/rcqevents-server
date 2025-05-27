@@ -241,6 +241,60 @@ def update_incident_address(incident):
     else:
         incident.direccion_formateada = None
 
+def get_assignment_display_name(assignment_data, event_id=None):
+    """
+    Determina el nombre a mostrar para una asignación de manera robusta.
+    Maneja casos donde servicio_nombre puede no estar disponible por problemas de esquema.
+    """
+    # Si tenemos servicio_nombre, usarlo directamente
+    if assignment_data.get('servicio_nombre'):
+        return assignment_data['servicio_nombre']
+    
+    # Si es un indicativo válido del evento (ID > 0), buscar su información
+    indicativo_id = assignment_data.get('indicativo_id')
+    if indicativo_id and indicativo_id > 0:
+        try:
+            indicativo = Indicativo.query.get(indicativo_id)
+            if indicativo:
+                return f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
+            else:
+                return f"ID: {indicativo_id}"
+        except:
+            return f"ID: {indicativo_id}"
+    
+    # Si indicativo_id es -1, significa que es texto libre pero servicio_nombre no está disponible
+    # Intentar recuperar el valor original desde la base de datos
+    if indicativo_id == -1:
+        try:
+            from sqlalchemy import text
+            assignment_id = assignment_data.get('id')
+            if assignment_id:
+                # Intentar obtener el valor original de la consulta SQL
+                result = db.session.execute(
+                    text("SELECT * FROM incident_assignments WHERE id = :assignment_id"),
+                    {"assignment_id": assignment_id}
+                ).fetchone()
+                
+                if result:
+                    # Intentar obtener servicio_nombre si la columna existe
+                    try:
+                        servicio_nombre = getattr(result, 'servicio_nombre', None)
+                        if servicio_nombre:
+                            return servicio_nombre
+                    except:
+                        pass
+                    
+                    # Si no podemos obtener servicio_nombre, es probable que sea una asignación de texto libre
+                    # sin la columna en la base de datos local
+                    return "Asignación personalizada"
+        except Exception as e:
+            print(f"Error al recuperar nombre de asignación: {e}")
+        
+        return "Texto libre"
+    
+    # Caso por defecto
+    return "Asignación sin nombre"
+
 def incident_to_dict(incident, fetch_address=False):
     # Usar SQL directo para cargar asignaciones para evitar problemas de esquema
     assignments_data = []
@@ -281,21 +335,8 @@ def incident_to_dict(incident, fetch_address=False):
                 except:
                     assignment_dict[field] = None
             
-            # Determinar el nombre a mostrar (misma lógica que otros endpoints)
-            if assignment_dict['servicio_nombre']:
-                assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
-            elif assignment_dict['indicativo_id'] and assignment_dict['indicativo_id'] > 0:
-                # Buscar el indicativo para obtener su nombre
-                try:
-                    indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
-                    if indicativo:
-                        assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
-                    else:
-                        assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
-                except:
-                    assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
-            else:
-                assignment_dict['indicativo_nombre'] = "Asignación sin nombre"
+            # Determinar el nombre a mostrar usando función auxiliar
+            assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, incident.event_id)
             
             assignments_data.append(assignment_dict)
     except Exception as e:
@@ -329,58 +370,50 @@ def incident_to_dict(incident, fetch_address=False):
 def assignment_to_dict(a):
     """Convierte una asignación a diccionario de manera segura"""
     try:
-        return a.to_dict()
-    except Exception as e:
-        print(f"Error al convertir asignación {a.id} a dict: {e}")
-        # Fallback manual
-        try:
-            assignment_dict = {
-                'id': a.id,
-                'incident_id': a.incident_id,
-                'indicativo_id': a.indicativo_id,
-                'servicio_nombre': getattr(a, 'servicio_nombre', None),
-                'estado_asignacion': a.estado_asignacion,
-                'fecha_creacion_asignacion': a.fecha_creacion_asignacion if isinstance(a.fecha_creacion_asignacion, str) else (a.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if a.fecha_creacion_asignacion else None),
-                'fecha_pre_avisado_asig': getattr(a, 'fecha_pre_avisado_asig', None),
-                'fecha_avisado_asig': getattr(a, 'fecha_avisado_asig', None),
-                'fecha_en_camino_asig': getattr(a, 'fecha_en_camino_asig', None),
-                'fecha_en_lugar_asig': getattr(a, 'fecha_en_lugar_asig', None),
-                'fecha_finalizado_asig': getattr(a, 'fecha_finalizado_asig', None),
-            }
-            
-            # Determinar el nombre a mostrar
-            if assignment_dict['servicio_nombre']:
-                assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
-            elif assignment_dict['indicativo_id'] and assignment_dict['indicativo_id'] > 0:
-                # Buscar el indicativo para obtener su nombre
+        # Usar directamente la lógica robusta en lugar de intentar a.to_dict() primero
+        assignment_dict = {
+            'id': a.id,
+            'incident_id': a.incident_id,
+            'indicativo_id': a.indicativo_id,
+            'servicio_nombre': getattr(a, 'servicio_nombre', None),
+            'estado_asignacion': a.estado_asignacion,
+            'fecha_creacion_asignacion': a.fecha_creacion_asignacion if isinstance(a.fecha_creacion_asignacion, str) else (a.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if a.fecha_creacion_asignacion else None),
+            'fecha_pre_avisado_asig': getattr(a, 'fecha_pre_avisado_asig', None),
+            'fecha_avisado_asig': getattr(a, 'fecha_avisado_asig', None),
+            'fecha_en_camino_asig': getattr(a, 'fecha_en_camino_asig', None),
+            'fecha_en_lugar_asig': getattr(a, 'fecha_en_lugar_asig', None),
+            'fecha_finalizado_asig': getattr(a, 'fecha_finalizado_asig', None),
+        }
+        
+        # Convertir fechas a string si son datetime objects
+        for field in ['fecha_pre_avisado_asig', 'fecha_avisado_asig', 'fecha_en_camino_asig', 'fecha_en_lugar_asig', 'fecha_finalizado_asig']:
+            value = assignment_dict[field]
+            if value and not isinstance(value, str):
                 try:
-                    indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
-                    if indicativo:
-                        assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
-                    else:
-                        assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
+                    assignment_dict[field] = value.strftime('%Y-%m-%d %H:%M:%S')
                 except:
-                    assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
-            else:
-                assignment_dict['indicativo_nombre'] = "Asignación sin nombre"
-            
-            return assignment_dict
-        except Exception as e2:
-            print(f"Error en fallback manual para asignación: {e2}")
-            return {
-                'id': getattr(a, 'id', None),
-                'incident_id': getattr(a, 'incident_id', None),
-                'indicativo_id': getattr(a, 'indicativo_id', None),
-                'servicio_nombre': None,
-                'indicativo_nombre': 'Error al cargar',
-                'estado_asignacion': getattr(a, 'estado_asignacion', 'desconocido'),
-                'fecha_creacion_asignacion': None,
-                'fecha_pre_avisado_asig': None,
-                'fecha_avisado_asig': None,
-                'fecha_en_camino_asig': None,
-                'fecha_en_lugar_asig': None,
-                'fecha_finalizado_asig': None,
-            }
+                    assignment_dict[field] = None
+        
+        # Determinar el nombre a mostrar usando función auxiliar
+        assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict)
+        
+        return assignment_dict
+    except Exception as e:
+        print(f"Error en assignment_to_dict para asignación {getattr(a, 'id', 'unknown')}: {e}")
+        return {
+            'id': getattr(a, 'id', None),
+            'incident_id': getattr(a, 'incident_id', None),
+            'indicativo_id': getattr(a, 'indicativo_id', None),
+            'servicio_nombre': None,
+            'indicativo_nombre': 'Error al cargar',
+            'estado_asignacion': getattr(a, 'estado_asignacion', 'desconocido'),
+            'fecha_creacion_asignacion': None,
+            'fecha_pre_avisado_asig': None,
+            'fecha_avisado_asig': None,
+            'fecha_en_camino_asig': None,
+            'fecha_en_lugar_asig': None,
+            'fecha_finalizado_asig': None,
+        }
 
 @bp.route('/<int:event_id>/incidents', methods=['GET'])
 def get_incidents(event_id):
@@ -550,21 +583,8 @@ def get_incident_assignments(event_id, incident_id):
                     except:
                         assignment_dict[field] = None
                 
-                # Determinar el nombre a mostrar
-                if assignment_dict['servicio_nombre']:
-                    assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
-                elif assignment_dict['indicativo_id'] and assignment_dict['indicativo_id'] > 0:
-                    # Buscar el indicativo para obtener su nombre
-                    try:
-                        indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
-                        if indicativo:
-                            assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
-                        else:
-                            assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
-                    except:
-                        assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
-                else:
-                    assignment_dict['indicativo_nombre'] = "Asignación sin nombre"
+                # Determinar el nombre a mostrar usando función auxiliar
+                assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, incident.event_id)
                 
                 assignments_data.append(assignment_dict)
                 
@@ -675,22 +695,8 @@ def create_incident_assignment(event_id, incident_id):
                 else:
                     assignment_dict[fecha_col] = None
             
-            # Determinar el nombre a mostrar
-            if servicio_nombre:
-                # Es texto libre (servicio, nombre, etc.)
-                assignment_dict['indicativo_nombre'] = servicio_nombre
-            elif indicativo_id and indicativo_id > 0:
-                # Es un indicativo real del evento
-                try:
-                    indicativo = Indicativo.query.get(indicativo_id)
-                    if indicativo:
-                        assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
-                    else:
-                        assignment_dict['indicativo_nombre'] = f"ID: {indicativo_id}"
-                except:
-                    assignment_dict['indicativo_nombre'] = f"ID: {indicativo_id}"
-            else:
-                assignment_dict['indicativo_nombre'] = "Asignación sin nombre"
+            # Determinar el nombre a mostrar usando función auxiliar
+            assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, incident.event_id)
             
             return jsonify({'status': 'success', 'message': 'Asignación creada', 'assignment': assignment_dict}), 201
             
@@ -778,20 +784,8 @@ def update_incident_assignment(event_id, incident_id, assignment_id):
                     except:
                         assignment_dict[fecha_col] = None
                 
-                # Determinar el nombre a mostrar
-                if assignment_dict['servicio_nombre']:
-                    assignment_dict['indicativo_nombre'] = assignment_dict['servicio_nombre']
-                elif assignment_dict['indicativo_id'] and assignment_dict['indicativo_id'] > 0:
-                    try:
-                        indicativo = Indicativo.query.get(assignment_dict['indicativo_id'])
-                        if indicativo:
-                            assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
-                        else:
-                            assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
-                    except:
-                        assignment_dict['indicativo_nombre'] = f"ID: {assignment_dict['indicativo_id']}"
-                else:
-                    assignment_dict['indicativo_nombre'] = "Asignación sin nombre"
+                # Determinar el nombre a mostrar usando función auxiliar
+                assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, incident.event_id)
                 
                 return jsonify({'status': 'success', 'message': 'Asignación actualizada', 'assignment': assignment_dict})
             else:
