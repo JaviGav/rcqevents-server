@@ -246,6 +246,7 @@ def incident_to_dict(incident, fetch_address=False):
     assignments_data = []
     try:
         assignments_data = [assignment_to_dict(a) for a in incident.assignments]
+        print(f"DEBUG: incident_to_dict - Incidente {incident.id} tiene {len(assignments_data)} asignaciones")
     except Exception as e:
         print(f"Error al cargar asignaciones para incidente {incident.id}: {e}")
         # Cargar asignaciones manualmente sin usar la relación
@@ -517,6 +518,9 @@ def get_incident_assignments(event_id, incident_id):
                 text("SELECT * FROM incident_assignments WHERE incident_id = :incident_id"),
                 {"incident_id": incident_id}
             ).fetchall()
+            print(f"DEBUG: Consultando asignaciones para incident_id={incident_id}, encontradas: {len(assignments)}")
+            for assignment in assignments:
+                print(f"DEBUG: Asignación encontrada: id={assignment.id}, indicativo_id={assignment.indicativo_id}")
             
             for assignment in assignments:
                 # Crear diccionario manualmente para evitar problemas de esquema
