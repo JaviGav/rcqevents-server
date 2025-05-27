@@ -1334,7 +1334,27 @@ function renderIncidents(incidents) {
         }
 
         const assignmentsCell = row.insertCell();
-        assignmentsCell.textContent = incident.assignments && incident.assignments.length > 0 ? incident.assignments.map(a => a.indicativo_nombre).join(', ') : 'Ninguno';
+        assignmentsCell.style.minWidth = '200px'; // Para dar espacio a los estados
+        if (incident.assignments && incident.assignments.length > 0) {
+            let assignmentsHtml = '';
+            incident.assignments.forEach((assignment, index) => {
+                const statusEmoji = getStatusEmoji(assignment.estado_asignacion);
+                const statusText = getStatusText(assignment.estado_asignacion);
+                const statusColors = getStatusColors(assignment.estado_asignacion);
+                
+                if (index > 0) assignmentsHtml += '<br>';
+                assignmentsHtml += `
+                    <div style="display:inline-flex; align-items:center; margin:2px 0; padding:3px 6px; border-radius:12px; font-size:11px; background:${statusColors.bg}; color:${statusColors.text}; border:1px solid ${statusColors.border};">
+                        <span style="margin-right:4px;">${statusEmoji}</span>
+                        <strong style="margin-right:4px;">${assignment.indicativo_nombre}</strong>
+                        <span>${statusText}</span>
+                    </div>
+                `;
+            });
+            assignmentsCell.innerHTML = assignmentsHtml;
+        } else {
+            assignmentsCell.innerHTML = '<em style="color:#999;">Ninguno</em>';
+        }
 
         const actionsCell = row.insertCell();
         if (incident.is_deleted) {
@@ -1591,6 +1611,41 @@ function getStatusText(status) {
         'finalizado': 'Finalizado'
     };
     return texts[status] || status;
+}
+
+function getStatusColors(status) {
+    const colors = {
+        'pre-avisado': {
+            bg: '#fff3cd',
+            text: '#856404',
+            border: '#ffeaa7'
+        },
+        'avisado': {
+            bg: '#d1ecf1',
+            text: '#0c5460',
+            border: '#bee5eb'
+        },
+        'en camino': {
+            bg: '#e2e3e5',
+            text: '#383d41',
+            border: '#d6d8db'
+        },
+        'en el lugar': {
+            bg: '#cce5ff',
+            text: '#004085',
+            border: '#99d6ff'
+        },
+        'finalizado': {
+            bg: '#d4edda',
+            text: '#155724',
+            border: '#c3e6cb'
+        }
+    };
+    return colors[status] || {
+        bg: '#f8f9fa',
+        text: '#6c757d',
+        border: '#dee2e6'
+    };
 }
 
 // Función para abrir el modal de cambio de estado de asignación
