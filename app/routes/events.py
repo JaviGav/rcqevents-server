@@ -242,6 +242,37 @@ def update_incident_address(incident):
         incident.direccion_formateada = None
 
 def incident_to_dict(incident, fetch_address=False):
+    # Manejar asignaciones de manera segura en caso de problemas de esquema
+    assignments_data = []
+    try:
+        assignments_data = [assignment_to_dict(a) for a in incident.assignments]
+    except Exception as e:
+        print(f"Error al cargar asignaciones para incidente {incident.id}: {e}")
+        # Cargar asignaciones manualmente sin usar la relación
+        try:
+            from sqlalchemy import text
+            assignments = db.session.execute(
+                text("SELECT * FROM incident_assignments WHERE incident_id = :incident_id"),
+                {"incident_id": incident.id}
+            ).fetchall()
+            for assignment in assignments:
+                assignments_data.append({
+                    'id': assignment.id,
+                    'incident_id': assignment.incident_id,
+                    'indicativo_id': assignment.indicativo_id,
+                    'servicio_nombre': getattr(assignment, 'servicio_nombre', None),
+                    'indicativo_nombre': f"ID: {assignment.indicativo_id}" if assignment.indicativo_id else getattr(assignment, 'servicio_nombre', 'Sin nombre'),
+                    'estado_asignacion': assignment.estado_asignacion,
+                    'fecha_creacion_asignacion': assignment.fecha_creacion_asignacion.strftime('%Y-%m-%d %H:%M:%S') if assignment.fecha_creacion_asignacion else None,
+                    'fecha_pre_avisado_asig': getattr(assignment, 'fecha_pre_avisado_asig', None),
+                    'fecha_avisado_asig': getattr(assignment, 'fecha_avisado_asig', None),
+                    'fecha_en_camino_asig': getattr(assignment, 'fecha_en_camino_asig', None),
+                    'fecha_en_lugar_asig': getattr(assignment, 'fecha_en_lugar_asig', None),
+                    'fecha_finalizado_asig': getattr(assignment, 'fecha_finalizado_asig', None),
+                })
+        except Exception as e2:
+            print(f"Error al cargar asignaciones manualmente: {e2}")
+    
     data = {
         'id': incident.id,
         'incident_number': incident.incident_number,
@@ -263,7 +294,7 @@ def incident_to_dict(incident, fetch_address=False):
         'fecha_finalizado': incident.fecha_finalizado.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_finalizado else None,
         'is_deleted': incident.is_deleted,
         'deleted_at': incident.deleted_at.strftime('%Y-%m-%d %H:%M:%S') if incident.deleted_at else None,
-        'assignments': [assignment_to_dict(a) for a in incident.assignments]
+        'assignments': assignments_data
     }
     return data
 
