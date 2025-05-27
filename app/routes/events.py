@@ -245,6 +245,42 @@ def update_incident_address(incident):
 # Formato: {assignment_id: texto_libre}
 assignment_text_cache = {}
 
+def load_assignment_text_cache():
+    """
+    Carga el cache de texto libre desde la base de datos al inicio del servidor.
+    Esto es útil cuando la columna servicio_nombre existe en el servidor pero no localmente.
+    """
+    try:
+        from sqlalchemy import text
+        
+        # Verificar qué columnas existen en la tabla
+        columns_query = db.session.execute(text("PRAGMA table_info(incident_assignments)")).fetchall()
+        existing_columns = [col[1] for col in columns_query]
+        
+        # Si la columna servicio_nombre existe, cargar todas las asignaciones de texto libre
+        if 'servicio_nombre' in existing_columns:
+            results = db.session.execute(
+                text("SELECT id, servicio_nombre FROM incident_assignments WHERE indicativo_id = -1 AND servicio_nombre IS NOT NULL")
+            ).fetchall()
+            
+            for result in results:
+                assignment_id, servicio_nombre = result
+                if servicio_nombre and servicio_nombre.strip():
+                    assignment_text_cache[assignment_id] = servicio_nombre
+            
+            print(f"[CACHE] Cargadas {len(assignment_text_cache)} asignaciones de texto libre al cache")
+        else:
+            print("[CACHE] Columna servicio_nombre no existe, cache iniciado vacío")
+            
+    except Exception as e:
+        print(f"[CACHE] Error al cargar cache inicial: {e}")
+
+# Cargar el cache al importar el módulo
+try:
+    load_assignment_text_cache()
+except:
+    pass  # Si falla, continuar sin cache inicial
+
 def get_assignment_display_name(assignment_data, event_id=None):
     """
     Determina el nombre a mostrar para una asignación de manera robusta.
@@ -269,7 +305,7 @@ def get_assignment_display_name(assignment_data, event_id=None):
         except:
             return f"ID: {indicativo_id}"
     
-    # Si indicativo_id es -1, significa que es texto libre pero servicio_nombre no está disponible
+    # Si indicativo_id es -1, significa que es texto libre
     if indicativo_id == -1:
         # Primero, verificar si tenemos el texto en el cache
         if assignment_id and assignment_id in assignment_text_cache:
@@ -295,31 +331,37 @@ def get_assignment_display_name(assignment_data, event_id=None):
                         assignment_text_cache[assignment_id] = result[0]
                         return result[0]
                 
-                # Si llegamos aquí, es una asignación de texto libre pero no pudimos recuperar el texto
-                # Intentar obtener de cualquier campo que pueda contener el texto
-                full_result = db.session.execute(
-                    text("SELECT * FROM incident_assignments WHERE id = :assignment_id"),
-                    {"assignment_id": assignment_id}
-                ).fetchone()
+                # Si no existe la columna servicio_nombre, buscar en el cache persistente
+                # o devolver un mensaje más útil
+                if assignment_id in assignment_text_cache:
+                    return assignment_text_cache[assignment_id]
                 
-                if full_result:
-                    # Buscar en todos los campos posibles
-                    for i, col_info in enumerate(columns_query):
-                        col_name = col_info[1]
-                        if col_name in ['servicio_nombre', 'asignado_a'] and i < len(full_result):
-                            value = full_result[i]
-                            if value and isinstance(value, str) and value.strip():
-                                assignment_text_cache[assignment_id] = value
-                                return value
+                # Como último recurso, intentar obtener información de otras fuentes
+                # Buscar en toda la fila por si hay datos en otras columnas
+                try:
+                    full_result = db.session.execute(
+                        text("SELECT * FROM incident_assignments WHERE id = :assignment_id"),
+                        {"assignment_id": assignment_id}
+                    ).fetchone()
+                    
+                    if full_result:
+                        # Buscar en todos los campos posibles que puedan contener texto
+                        for i, col_info in enumerate(columns_query):
+                            col_name = col_info[1]
+                            if col_name in ['servicio_nombre', 'asignado_a', 'nombre_servicio'] and i < len(full_result):
+                                value = full_result[i]
+                                if value and isinstance(value, str) and value.strip():
+                                    assignment_text_cache[assignment_id] = value
+                                    return value
+                except:
+                    pass
                 
         except Exception as e:
             print(f"Error al recuperar nombre de asignación {assignment_id}: {e}")
         
-        # Si tenemos el ID pero no pudimos recuperar el texto, intentar del cache global
-        if assignment_id and assignment_id in assignment_text_cache:
-            return assignment_text_cache[assignment_id]
-        
-        return "Texto libre (no disponible)"
+        # Si llegamos aquí, es texto libre pero no pudimos recuperarlo
+        # Devolver un mensaje que indique que es texto personalizado
+        return f"Asignación personalizada #{assignment_id}" if assignment_id else "Asignación personalizada"
     
     # Caso por defecto
     return "Asignación sin nombre"
@@ -708,15 +750,17 @@ def create_incident_assignment(event_id, incident_id):
             assignment_id = result.lastrowid
             
             # Si es texto libre, SIEMPRE agregarlo al cache para preservarlo
+            # Esto es especialmente importante cuando la columna servicio_nombre no existe
             if indicativo_id == -1 and servicio_nombre:
                 assignment_text_cache[assignment_id] = servicio_nombre
+                print(f"[CACHE] Guardado texto libre: assignment_id={assignment_id}, texto='{servicio_nombre}'")
             
             # Crear respuesta manual
             assignment_dict = {
                 'id': assignment_id,
                 'incident_id': incident.id,
                 'indicativo_id': indicativo_id,
-                'servicio_nombre': servicio_nombre,
+                'servicio_nombre': servicio_nombre if 'servicio_nombre' in existing_columns else None,
                 'estado_asignacion': nuevo_estado_asignacion,
                 'fecha_creacion_asignacion': now.strftime('%Y-%m-%d %H:%M:%S'),
             }
