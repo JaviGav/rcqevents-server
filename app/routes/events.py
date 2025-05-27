@@ -241,6 +241,10 @@ def update_incident_address(incident):
     else:
         incident.direccion_formateada = None
 
+# Cache temporal para mantener el texto libre de asignaciones cuando servicio_nombre no está disponible
+# Formato: {assignment_id: texto_libre}
+assignment_text_cache = {}
+
 def get_assignment_display_name(assignment_data, event_id=None):
     """
     Determina el nombre a mostrar para una asignación de manera robusta.
@@ -262,12 +266,17 @@ def get_assignment_display_name(assignment_data, event_id=None):
         except:
             return f"ID: {indicativo_id}"
     
-    # Si indicativo_id es -1, significa que es texto libre pero servicio_nombre no está disponible
-    # Intentar recuperar el valor original desde la base de datos
-    if indicativo_id == -1:
+    # Si indicativo_id es None, significa que es texto libre pero servicio_nombre no está disponible
+    if indicativo_id is None:
+        assignment_id = assignment_data.get('id')
+        
+        # Primero, verificar si tenemos el texto en el cache
+        if assignment_id and assignment_id in assignment_text_cache:
+            return assignment_text_cache[assignment_id]
+        
+        # Intentar recuperar el valor original desde la base de datos
         try:
             from sqlalchemy import text
-            assignment_id = assignment_data.get('id')
             if assignment_id:
                 # Intentar obtener el valor original de la consulta SQL
                 result = db.session.execute(
@@ -280,6 +289,9 @@ def get_assignment_display_name(assignment_data, event_id=None):
                     try:
                         servicio_nombre = getattr(result, 'servicio_nombre', None)
                         if servicio_nombre:
+                            # Actualizar el cache para futuras consultas
+                            if assignment_id:
+                                assignment_text_cache[assignment_id] = servicio_nombre
                             return servicio_nombre
                     except:
                         pass
@@ -630,7 +642,7 @@ def create_incident_assignment(event_id, incident_id):
             servicio_nombre = None
         else:
             # Es texto libre (CME, GUB, nombres, etc.)
-            indicativo_id = -1  # Valor especial para texto libre
+            indicativo_id = None  # NULL para texto libre (más natural que -1)
             servicio_nombre = indicativo_value
 
         # Usar SQL directo para insertar la asignación
@@ -677,6 +689,10 @@ def create_incident_assignment(event_id, incident_id):
             
             # Obtener el ID de la asignación creada
             assignment_id = result.lastrowid
+            
+            # Si es texto libre y no se pudo guardar en servicio_nombre, agregarlo al cache
+            if indicativo_id is None and servicio_nombre and 'servicio_nombre' not in existing_columns:
+                assignment_text_cache[assignment_id] = servicio_nombre
             
             # Crear respuesta manual
             assignment_dict = {
@@ -819,6 +835,10 @@ def delete_incident_assignment(event_id, incident_id, assignment_id):
             {'assignment_id': assignment_id, 'incident_id': incident_id}
         )
         db.session.commit()
+        
+        # Limpiar del cache si existe
+        if assignment_id in assignment_text_cache:
+            del assignment_text_cache[assignment_id]
         
         return jsonify({'status': 'success', 'message': 'Asignación eliminada'})
         

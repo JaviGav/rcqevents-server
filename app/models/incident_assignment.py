@@ -27,8 +27,8 @@ class IncidentAssignment(db.Model):
             nombre_asignado = self.servicio_nombre
         elif self.indicativo:
             nombre_asignado = f"{self.indicativo.indicativo} ({self.indicativo.nombre})" if self.indicativo.nombre else self.indicativo.indicativo
-        elif self.indicativo_id == -1:
-            # Caso especial: indicativo_id = -1 significa texto libre, pero servicio_nombre puede ser None por problemas de esquema
+        elif self.indicativo_id is None:
+            # Caso especial: indicativo_id = None significa texto libre, pero servicio_nombre puede ser None por problemas de esquema
             # Intentar recuperar el valor original desde la base de datos
             try:
                 from sqlalchemy import text
