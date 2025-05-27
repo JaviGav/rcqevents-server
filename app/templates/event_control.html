@@ -2055,6 +2055,40 @@ document.querySelectorAll('.status-change-btn').forEach(button => {
             
             const result = await response.json();
             if (response.ok && result.status === 'success') {
+                // Si el incidente pasa a solucionado, finalizar todas las asignaciones
+                if (newStatus === 'solucionado') {
+                    try {
+                        const assignmentsResponse = await fetch(`/events/${eventId}/incidents/${currentIncidentForStatusChange}/assignments`);
+                        if (assignmentsResponse.ok) {
+                            const assignmentsResult = await assignmentsResponse.json();
+                            if (assignmentsResult.status === 'success' && assignmentsResult.assignments) {
+                                // Finalizar todas las asignaciones que no estén ya finalizadas
+                                const activeAssignments = assignmentsResult.assignments.filter(a => a.estado_asignacion !== 'finalizado');
+                                
+                                for (const assignment of activeAssignments) {
+                                    try {
+                                        await fetch(`/events/${eventId}/incidents/${currentIncidentForStatusChange}/assignments/${assignment.id}`, {
+                                            method: 'PUT',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                            },
+                                            body: JSON.stringify({ estado_asignacion: 'finalizado' }),
+                                        });
+                                    } catch (error) {
+                                        console.error(`Error al finalizar asignación ${assignment.id}:`, error);
+                                    }
+                                }
+                                
+                                if (activeAssignments.length > 0) {
+                                    console.log(`Auto-finalizadas ${activeAssignments.length} asignación${activeAssignments.length > 1 ? 'es' : ''} al resolver el incidente.`);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error al auto-finalizar asignaciones:', error);
+                    }
+                }
+                
                 statusChangeModal.style.display = 'none';
                 currentIncidentForStatusChange = null;
                 loadIncidents(); // Recargar la lista para mostrar el nuevo estado
@@ -2333,6 +2367,12 @@ function closeAllModals() {
         assignmentStatusModal.style.display = 'none';
         currentAssignmentForStatusChange = null;
     }
+    
+    // Cerrar modal rápido de cambio de estado de asignación
+    if (document.getElementById('quickAssignmentStatusModal').style.display === 'flex') {
+        document.getElementById('quickAssignmentStatusModal').style.display = 'none';
+        currentAssignmentForStatusChange = null;
+    }
 }
 
 // Click fuera del modal para cerrar
@@ -2384,6 +2424,12 @@ document.addEventListener('click', function(e) {
     // Modal de cambio de estado de asignación
     if (assignmentStatusModal.style.display === 'flex' && e.target === assignmentStatusModal) {
         assignmentStatusModal.style.display = 'none';
+        currentAssignmentForStatusChange = null;
+    }
+    
+    // Modal rápido de cambio de estado de asignación
+    if (document.getElementById('quickAssignmentStatusModal').style.display === 'flex' && e.target === document.getElementById('quickAssignmentStatusModal')) {
+        document.getElementById('quickAssignmentStatusModal').style.display = 'none';
         currentAssignmentForStatusChange = null;
     }
 });
