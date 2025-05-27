@@ -614,13 +614,8 @@ def create_incident_assignment(event_id, incident_id):
             existing_columns = [col[1] for col in columns_query]
             
             # Construir la consulta de inserción basada en las columnas existentes
-            base_columns = ['incident_id', 'estado_asignacion', 'fecha_creacion_asignacion']
-            base_values = [incident.id, nuevo_estado_asignacion, now]
-            
-            # Solo incluir indicativo_id si es un indicativo real del evento (ID positivo)
-            if indicativo_id > 0:
-                base_columns.append('indicativo_id')
-                base_values.append(indicativo_id)
+            base_columns = ['incident_id', 'estado_asignacion', 'fecha_creacion_asignacion', 'indicativo_id']
+            base_values = [incident.id, nuevo_estado_asignacion, now, indicativo_id]
             
             # Agregar servicio_nombre si la columna existe
             if 'servicio_nombre' in existing_columns and servicio_nombre:
@@ -659,8 +654,8 @@ def create_incident_assignment(event_id, incident_id):
             assignment_dict = {
                 'id': assignment_id,
                 'incident_id': incident.id,
-                'indicativo_id': indicativo_id if indicativo_id > 0 else None,
-                'servicio_nombre': servicio_nombre if indicativo_id == -1 else None,
+                'indicativo_id': indicativo_id,
+                'servicio_nombre': servicio_nombre,
                 'estado_asignacion': nuevo_estado_asignacion,
                 'fecha_creacion_asignacion': now.strftime('%Y-%m-%d %H:%M:%S'),
             }
@@ -673,10 +668,10 @@ def create_incident_assignment(event_id, incident_id):
                     assignment_dict[fecha_col] = None
             
             # Determinar el nombre a mostrar
-            if indicativo_id == -1:
+            if servicio_nombre:
                 # Es texto libre (servicio, nombre, etc.)
                 assignment_dict['indicativo_nombre'] = servicio_nombre
-            elif indicativo_id > 0:
+            elif indicativo_id and indicativo_id > 0:
                 # Es un indicativo real del evento
                 try:
                     indicativo = Indicativo.query.get(indicativo_id)
