@@ -594,9 +594,15 @@ def create_incident_assignment(event_id, incident_id):
             servicio_nombre = None
         except (ValueError, TypeError):
             # Si no es un número, es un servicio
-            # Para servicios, usamos un valor especial en indicativo_id (ej: -1) 
+            # Para servicios, usamos valores especiales negativos como ID
             # y guardamos el nombre real en servicio_nombre
-            indicativo_id = -1  # Valor especial para servicios
+            service_map = {
+                'CME': -1,
+                'GUB': -2, 
+                'Servicios Médicos': -3,
+                'Seguridad': -4
+            }
+            indicativo_id = service_map.get(str(indicativo_value), -999)  # -999 para servicios no mapeados
             servicio_nombre = str(indicativo_value)
 
         # Usar SQL directo para insertar la asignación
@@ -608,13 +614,8 @@ def create_incident_assignment(event_id, incident_id):
             existing_columns = [col[1] for col in columns_query]
             
             # Construir la consulta de inserción basada en las columnas existentes
-            base_columns = ['incident_id', 'estado_asignacion', 'fecha_creacion_asignacion']
-            base_values = [incident.id, nuevo_estado_asignacion, now]
-            
-            # Solo agregar indicativo_id si no es un servicio (valor especial -1)
-            if indicativo_id != -1:
-                base_columns.append('indicativo_id')
-                base_values.append(indicativo_id)
+            base_columns = ['incident_id', 'indicativo_id', 'estado_asignacion', 'fecha_creacion_asignacion']
+            base_values = [incident.id, indicativo_id, nuevo_estado_asignacion, now]
             
             # Agregar servicio_nombre si la columna existe
             if 'servicio_nombre' in existing_columns and servicio_nombre:
@@ -653,8 +654,8 @@ def create_incident_assignment(event_id, incident_id):
             assignment_dict = {
                 'id': assignment_id,
                 'incident_id': incident.id,
-                'indicativo_id': indicativo_id if indicativo_id != -1 else None,
-                'servicio_nombre': servicio_nombre,
+                'indicativo_id': indicativo_id if indicativo_id > 0 else None,
+                'servicio_nombre': servicio_nombre if indicativo_id < 0 else None,
                 'estado_asignacion': nuevo_estado_asignacion,
                 'fecha_creacion_asignacion': now.strftime('%Y-%m-%d %H:%M:%S'),
             }
@@ -667,9 +668,11 @@ def create_incident_assignment(event_id, incident_id):
                     assignment_dict[fecha_col] = None
             
             # Determinar el nombre a mostrar
-            if servicio_nombre:
+            if indicativo_id < 0:
+                # Es un servicio
                 assignment_dict['indicativo_nombre'] = servicio_nombre
-            elif indicativo_id and indicativo_id != -1:
+            elif indicativo_id > 0:
+                # Es un indicativo real
                 try:
                     indicativo = Indicativo.query.get(indicativo_id)
                     if indicativo:
