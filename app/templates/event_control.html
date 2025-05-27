@@ -453,12 +453,20 @@
                  <h3 style="margin-bottom:15px;">Nueva Asignación:</h3>
                  <form id="assignIncidentForm">
                      <div style="margin-bottom:15px;">
-                         <label for="assignIndicativoSelect" style="display:block; margin-bottom:5px; font-weight:bold;">Asignar a indicativo:</label>
+                         <label for="assignIndicativoSelect" style="display:block; margin-bottom:5px; font-weight:bold;">Asignar a:</label>
                          <select id="assignIndicativoSelect" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                             <option value="">-- Selecciona un indicativo --</option>
-                             {% for ind in indicativos %}
-                                 <option value="{{ ind.id }}">{{ ind.indicativo }} ({{ ind.nombre or 'Sin nombre' }})</option>
-                             {% endfor %}
+                             <option value="">-- Selecciona a quién asignar --</option>
+                             <optgroup label="Servicios">
+                                 <option value="CME">CME</option>
+                                 <option value="GUB">GUB</option>
+                                 <option value="Servicios Médicos">Servicios Médicos</option>
+                                 <option value="Seguridad">Seguridad</option>
+                             </optgroup>
+                             <optgroup label="Indicativos del evento">
+                                 {% for ind in indicativos %}
+                                     <option value="{{ ind.id }}">{{ ind.indicativo }} ({{ ind.nombre or 'Sin nombre' }})</option>
+                                 {% endfor %}
+                             </optgroup>
                          </select>
                      </div>
                      

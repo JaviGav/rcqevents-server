@@ -398,16 +398,13 @@ def get_incident_assignments(event_id, incident_id):
         # Verificar que el incidente existe y pertenece al evento
         incident = Incident.query.filter_by(id=incident_id, event_id=event_id).first_or_404()
         
-        # Obtener asignaciones con información del indicativo
-        assignments = db.session.query(IncidentAssignment, Indicativo).join(
-            Indicativo, IncidentAssignment.indicativo_id == Indicativo.id
-        ).filter(IncidentAssignment.incident_id == incident_id).all()
+        # Obtener todas las asignaciones del incidente
+        assignments = IncidentAssignment.query.filter_by(incident_id=incident_id).all()
         
         assignments_data = []
-        for assignment, indicativo in assignments:
-            assignment_dict = assignment.to_dict()
-            assignment_dict['indicativo_nombre'] = f"{indicativo.indicativo} ({indicativo.nombre})" if indicativo.nombre else indicativo.indicativo
-            assignments_data.append(assignment_dict)
+        for assignment in assignments:
+            # Usar el método to_dict del modelo que ya maneja servicios e indicativos
+            assignments_data.append(assignment.to_dict())
         
         return jsonify({
             'status': 'success',
@@ -426,10 +423,23 @@ def create_incident_assignment(event_id, incident_id):
 
     now = datetime.utcnow()
     nuevo_estado_asignacion = data.get('estado_asignacion', 'pre-avisado')
+    
+    # Determinar si es un indicativo (número) o un servicio (texto)
+    indicativo_value = data['indicativo_id']
+    
+    try:
+        # Si es un número, es un indicativo
+        indicativo_id = int(indicativo_value)
+        servicio_nombre = None
+    except (ValueError, TypeError):
+        # Si no es un número, es un servicio
+        indicativo_id = None
+        servicio_nombre = str(indicativo_value)
 
     assignment = IncidentAssignment(
         incident_id=incident.id,
-        indicativo_id=data['indicativo_id'],
+        indicativo_id=indicativo_id,
+        servicio_nombre=servicio_nombre,
         estado_asignacion=nuevo_estado_asignacion,
         fecha_creacion_asignacion=now
     )
