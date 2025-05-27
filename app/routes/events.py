@@ -365,7 +365,7 @@ def incident_to_dict(incident, fetch_address=False):
                     assignment_dict[field] = None
             
             # Determinar el nombre a mostrar usando función auxiliar
-            assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, incident.event_id)
+            assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, event_id)
             
             assignments_data.append(assignment_dict)
     except Exception as e:
@@ -424,7 +424,7 @@ def assignment_to_dict(a):
                     assignment_dict[field] = None
         
         # Determinar el nombre a mostrar usando función auxiliar
-        assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict)
+        assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, event_id)
         
         return assignment_dict
     except Exception as e:
@@ -613,7 +613,7 @@ def get_incident_assignments(event_id, incident_id):
                         assignment_dict[field] = None
                 
                 # Determinar el nombre a mostrar usando función auxiliar
-                assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, incident.event_id)
+                assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, event_id)
                 
                 assignments_data.append(assignment_dict)
                 
@@ -729,7 +729,7 @@ def create_incident_assignment(event_id, incident_id):
                     assignment_dict[fecha_col] = None
             
             # Determinar el nombre a mostrar usando función auxiliar
-            assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, incident.event_id)
+            assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, event_id)
             
             return jsonify({'status': 'success', 'message': 'Asignación creada', 'assignment': assignment_dict}), 201
             
@@ -818,7 +818,7 @@ def update_incident_assignment(event_id, incident_id, assignment_id):
                         assignment_dict[fecha_col] = None
                 
                 # Determinar el nombre a mostrar usando función auxiliar
-                assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, incident.event_id)
+                assignment_dict['indicativo_nombre'] = get_assignment_display_name(assignment_dict, event_id)
                 
                 return jsonify({'status': 'success', 'message': 'Asignación actualizada', 'assignment': assignment_dict})
             else:
