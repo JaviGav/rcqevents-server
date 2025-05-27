@@ -297,7 +297,12 @@
                         <option value="🛠️ Avería Técnica">🛠️ Avería Técnica</option>
                         <option value="🗣️ Altercado/Discusión">🗣️ Altercado/Discusión</option>
                         <option value="❓ Otro (General)">❓ Otro (General)</option>
+                        <option value="Otro">🔧 Otro (especificar)</option>
                     </select>
+                </div>
+                <div class="form-group" id="tipoOtroGroup" style="display:none;">
+                    <label for="incidentTipoOtro">Especifica el tipo de incidente:</label>
+                    <input type="text" id="incidentTipoOtro" name="tipo_otro" style="width:90%;" placeholder="Describe el tipo de incidente...">
                 </div>
                 <div class="form-group" id="dorsalGroup" style="display:none;">
                     <label for="incidentDorsal">Dorsal:</label>
@@ -323,7 +328,12 @@
                         {% for ind in indicativos %}
                             <option value="{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}">{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}</option>
                         {% endfor %}
+                        <option value="Otro">Otro (especificar)</option>
                     </select>
+                </div>
+                <div class="form-group" id="reportadoOtroGroup" style="display:none;">
+                    <label for="incidentReportadoOtro">Especifica quién reporta:</label>
+                    <input type="text" id="incidentReportadoOtro" name="reportado_otro" style="width:90%;" placeholder="Nombre o descripción de quién reporta...">
                 </div>
                 <div class="form-group">
                     <label>Localización:</label>
@@ -878,6 +888,10 @@ addIncidentBtn.addEventListener('click', function() {
     // Asegúrate de que los campos opcionales estén ocultos al abrir para nuevo incidente
     dorsalGroup.style.display = 'none';
     patologiaGroup.style.display = 'none';
+    document.getElementById('tipoOtroGroup').style.display = 'none';
+    document.getElementById('reportadoOtroGroup').style.display = 'none';
+    document.getElementById('incidentTipoOtro').required = false;
+    document.getElementById('incidentReportadoOtro').required = false;
     editingIncidentId = null; // Asegurarse de que no estamos en modo edición
     document.getElementById('incidentLat').value = ''; // Limpiar campos de lat/lng
     document.getElementById('incidentLng').value = '';
@@ -911,12 +925,35 @@ closeIncidentModal.addEventListener('click', function() {
 });
 
 incidentTipoInput.addEventListener('change', function() {
+    const tipoOtroGroup = document.getElementById('tipoOtroGroup');
+    
     if (this.value === '🚑 Asistencia Médica') {
         dorsalGroup.style.display = 'block';
         patologiaGroup.style.display = 'block';
     } else {
         dorsalGroup.style.display = 'none';
         patologiaGroup.style.display = 'none';
+    }
+    
+    if (this.value === 'Otro') {
+        tipoOtroGroup.style.display = 'block';
+        document.getElementById('incidentTipoOtro').required = true;
+    } else {
+        tipoOtroGroup.style.display = 'none';
+        document.getElementById('incidentTipoOtro').required = false;
+    }
+});
+
+// Event listener para "Reportado por"
+document.getElementById('incidentReportadoPor').addEventListener('change', function() {
+    const reportadoOtroGroup = document.getElementById('reportadoOtroGroup');
+    
+    if (this.value === 'Otro') {
+        reportadoOtroGroup.style.display = 'block';
+        document.getElementById('incidentReportadoOtro').required = true;
+    } else {
+        reportadoOtroGroup.style.display = 'none';
+        document.getElementById('incidentReportadoOtro').required = false;
     }
 });
 
@@ -984,9 +1021,60 @@ async function openIncidentModalForEdit(incidentId) {
         if (result.status === 'success' && result.incident) {
             const incident = result.incident;
             incidentModalTitle.textContent = `Editando Incidente #${incident.incident_number}`;
-            document.getElementById('incidentTipo').value = incident.tipo || '';
+            
+            // Manejar tipo de incidente
+            const tipoSelect = document.getElementById('incidentTipo');
+            const tipoOtroGroup = document.getElementById('tipoOtroGroup');
+            const tipoOtroInput = document.getElementById('incidentTipoOtro');
+            
+            // Verificar si el tipo está en las opciones predefinidas
+            let tipoEncontrado = false;
+            for (let option of tipoSelect.options) {
+                if (option.value === incident.tipo) {
+                    tipoSelect.value = incident.tipo;
+                    tipoEncontrado = true;
+                    break;
+                }
+            }
+            
+            if (!tipoEncontrado && incident.tipo) {
+                // Es un tipo personalizado
+                tipoSelect.value = 'Otro';
+                tipoOtroGroup.style.display = 'block';
+                tipoOtroInput.value = incident.tipo;
+                tipoOtroInput.required = true;
+            } else {
+                tipoOtroGroup.style.display = 'none';
+                tipoOtroInput.required = false;
+            }
+            
+            // Manejar reportado por
+            const reportadoSelect = document.getElementById('incidentReportadoPor');
+            const reportadoOtroGroup = document.getElementById('reportadoOtroGroup');
+            const reportadoOtroInput = document.getElementById('incidentReportadoOtro');
+            
+            // Verificar si el reportado por está en las opciones predefinidas
+            let reportadoEncontrado = false;
+            for (let option of reportadoSelect.options) {
+                if (option.value === incident.reportado_por) {
+                    reportadoSelect.value = incident.reportado_por;
+                    reportadoEncontrado = true;
+                    break;
+                }
+            }
+            
+            if (!reportadoEncontrado && incident.reportado_por) {
+                // Es un reportado por personalizado
+                reportadoSelect.value = 'Otro';
+                reportadoOtroGroup.style.display = 'block';
+                reportadoOtroInput.value = incident.reportado_por;
+                reportadoOtroInput.required = true;
+            } else {
+                reportadoOtroGroup.style.display = 'none';
+                reportadoOtroInput.required = false;
+            }
+            
             document.getElementById('incidentDescripcion').value = incident.descripcion || '';
-            document.getElementById('incidentReportadoPor').value = incident.reportado_por || '';
             document.getElementById('incidentInfoUbicacion').value = incident.info_ubicacion || '';
             document.getElementById('incidentEstado').value = incident.estado || 'activo';
             document.getElementById('incidentDorsal').value = incident.dorsal || '';
@@ -1297,10 +1385,22 @@ document.querySelectorAll('.status-change-btn').forEach(button => {
 incidentForm.addEventListener('submit', async function(e) {
     e.preventDefault();
 
+    // Determinar el tipo final
+    let tipoFinal = document.getElementById('incidentTipo').value;
+    if (tipoFinal === 'Otro') {
+        tipoFinal = document.getElementById('incidentTipoOtro').value;
+    }
+    
+    // Determinar el reportado por final
+    let reportadoPorFinal = document.getElementById('incidentReportadoPor').value;
+    if (reportadoPorFinal === 'Otro') {
+        reportadoPorFinal = document.getElementById('incidentReportadoOtro').value;
+    }
+
     const formData = {
-        tipo: document.getElementById('incidentTipo').value,
+        tipo: tipoFinal,
         descripcion: document.getElementById('incidentDescripcion').value,
-        reportado_por: document.getElementById('incidentReportadoPor').value,
+        reportado_por: reportadoPorFinal,
         lat: parseFloat(document.getElementById('incidentLat').value),
         lng: parseFloat(document.getElementById('incidentLng').value),
         info_ubicacion: document.getElementById('incidentInfoUbicacion').value || null,
@@ -1501,6 +1601,11 @@ function closeAllModals() {
             incidentMarker = null;
         }
         editingIncidentId = null;
+        // Limpiar campos de texto libre
+        document.getElementById('tipoOtroGroup').style.display = 'none';
+        document.getElementById('reportadoOtroGroup').style.display = 'none';
+        document.getElementById('incidentTipoOtro').required = false;
+        document.getElementById('incidentReportadoOtro').required = false;
     }
     
     // Cerrar modal de cambio de estado
@@ -1535,6 +1640,11 @@ document.addEventListener('click', function(e) {
             incidentMarker = null;
         }
         editingIncidentId = null;
+        // Limpiar campos de texto libre
+        document.getElementById('tipoOtroGroup').style.display = 'none';
+        document.getElementById('reportadoOtroGroup').style.display = 'none';
+        document.getElementById('incidentTipoOtro').required = false;
+        document.getElementById('incidentReportadoOtro').required = false;
     }
     
     // Modal de cambio de estado
