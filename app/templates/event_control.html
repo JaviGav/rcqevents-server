@@ -2180,7 +2180,8 @@ assignIncidentForm.addEventListener('submit', async function(e) {
     
     const formData = {
         indicativo_id: assignedTo,
-        estado_asignacion: document.getElementById('assignStatusSelect').value
+        estado_asignacion: document.getElementById('assignStatusSelect').value,
+        assigned_by_indicativo_id: indicativoId  // Añadir el indicativo que está haciendo la asignación
     };
     
     try {

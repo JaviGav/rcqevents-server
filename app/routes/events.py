@@ -785,22 +785,32 @@ def create_incident_assignment(event_id, incident_id):
                     current_app.logger.info(f"[DEBUG] Descripción del servicio construida: {service_description}")
                     
                     # Crear el mensaje de servicio asignado
-                    # Necesitamos un indicativo "del sistema" para enviar el mensaje
-                    # Buscaremos un indicativo que sea CME, o el primero disponible
+                    # Usar el indicativo que está haciendo la asignación como emisor
+                    assigned_by_indicativo_id = data.get('assigned_by_indicativo_id')
                     system_indicativo = None
                     
-                    # Intentar encontrar CME primero
-                    for ind in Indicativo.query.filter_by(event_id=event_id).all():
-                        if 'CME' in ind.indicativo.upper() or 'CENTRAL' in ind.indicativo.upper():
-                            system_indicativo = ind
-                            current_app.logger.info(f"[DEBUG] Encontrado indicativo CME/CENTRAL: {ind.indicativo}")
-                            break
-                    
-                    # Si no hay CME, usar el primer indicativo disponible
-                    if not system_indicativo:
-                        system_indicativo = Indicativo.query.filter_by(event_id=event_id).first()
+                    if assigned_by_indicativo_id:
+                        # Usar el indicativo que está haciendo la asignación
+                        system_indicativo = Indicativo.query.filter_by(id=assigned_by_indicativo_id, event_id=event_id).first()
                         if system_indicativo:
-                            current_app.logger.info(f"[DEBUG] Usando primer indicativo disponible como emisor: {system_indicativo.indicativo}")
+                            current_app.logger.info(f"[DEBUG] Usando indicativo que hace la asignación como emisor: {system_indicativo.indicativo}")
+                        else:
+                            current_app.logger.warning(f"[DEBUG] No se encontró el indicativo que hace la asignación (ID: {assigned_by_indicativo_id})")
+                    
+                    # Si no se especificó o no se encontró, buscar CME o el primer indicativo disponible como fallback
+                    if not system_indicativo:
+                        # Intentar encontrar CME primero
+                        for ind in Indicativo.query.filter_by(event_id=event_id).all():
+                            if 'CME' in ind.indicativo.upper() or 'CENTRAL' in ind.indicativo.upper():
+                                system_indicativo = ind
+                                current_app.logger.info(f"[DEBUG] Usando CME/CENTRAL como fallback: {ind.indicativo}")
+                                break
+                        
+                        # Si no hay CME, usar el primer indicativo disponible
+                        if not system_indicativo:
+                            system_indicativo = Indicativo.query.filter_by(event_id=event_id).first()
+                            if system_indicativo:
+                                current_app.logger.info(f"[DEBUG] Usando primer indicativo disponible como fallback: {system_indicativo.indicativo}")
                     
                     if system_indicativo:
                         # Determinar si tenemos coordenadas para el mensaje
