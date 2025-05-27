@@ -2480,19 +2480,27 @@ function openQuickAssignmentStatusModal(assignmentId, assignmentName, currentSta
     const info = document.getElementById('quickAssignmentStatusInfo');
     
     title.textContent = 'Cambiar Estado de Asignación';
-    info.textContent = `${assignmentName} - Estado actual: ${getStatusText(currentStatus)}`;
+    info.textContent = assignmentName; // Solo mostrar el nombre, sin el estado actual
     
-    // Resaltar el estado actual en los botones
+    // Resaltar el estado actual en los botones de forma mucho más prominente
     document.querySelectorAll('.quick-status-btn').forEach(btn => {
         const btnStatus = btn.dataset.status;
         if (btnStatus === currentStatus) {
-            btn.style.borderWidth = '3px';
-            btn.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
-            btn.style.transform = 'scale(1.02)';
+            // Estado actual - resaltado muy prominente
+            btn.style.borderWidth = '4px';
+            btn.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3), inset 0 0 0 2px rgba(255,255,255,0.8)';
+            btn.style.transform = 'scale(1.08)';
+            btn.style.fontWeight = '900';
+            btn.style.position = 'relative';
+            btn.style.zIndex = '10';
         } else {
+            // Estados no actuales - estilo normal
             btn.style.borderWidth = '2px';
             btn.style.boxShadow = 'none';
             btn.style.transform = 'scale(1)';
+            btn.style.fontWeight = 'bold';
+            btn.style.position = 'relative';
+            btn.style.zIndex = '1';
         }
     });
     
