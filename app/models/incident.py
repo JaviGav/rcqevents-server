@@ -22,6 +22,13 @@ class Incident(db.Model):
     fecha_stand_by = db.Column(db.DateTime, nullable=True)
     fecha_finalizado = db.Column(db.DateTime, nullable=True)
 
+    # Recursos asignados/en el lugar: JSON array de {nombre, estado} donde estado es 'asignado' o 'en_lugar'
+    # Ej: [{"nombre": "CME", "estado": "asignado"}, {"nombre": "SEM", "estado": "en_lugar"}]
+    recursos_asignados = db.Column(db.Text, nullable=True)
+
+    # Canal de entrada: por qué vía llegó la notificación del servicio
+    canal_entrada = db.Column(db.String(100), nullable=True)
+
     # Campos para borrado lógico
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)

@@ -9,6 +9,7 @@ from app.models.incident import Incident
 from app.models.incident_assignment import IncidentAssignment
 from sqlalchemy import func
 import requests
+import json
 
 bp = Blueprint('events', __name__, url_prefix='/events')
 
@@ -413,7 +414,9 @@ def incident_to_dict(incident, fetch_address=False):
         'fecha_finalizado': incident.fecha_finalizado.strftime('%Y-%m-%d %H:%M:%S') if incident.fecha_finalizado else None,
         'is_deleted': incident.is_deleted,
         'deleted_at': incident.deleted_at.strftime('%Y-%m-%d %H:%M:%S') if incident.deleted_at else None,
-        'assignments': assignments_data
+        'assignments': assignments_data,
+        'recursos_asignados': json.loads(incident.recursos_asignados) if incident.recursos_asignados else [],
+        'canal_entrada': incident.canal_entrada,
     }
     return data
 
@@ -485,6 +488,10 @@ def create_incident(event_id):
     max_num = db.session.query(func.max(Incident.incident_number)).filter_by(event_id=event_id).scalar() or 0
     now = datetime.utcnow()
     nuevo_estado = data.get('estado', 'activo')
+    # Procesar recursos_asignados (JSON array)
+    recursos_raw = data.get('recursos_asignados')
+    recursos_json = json.dumps(recursos_raw) if isinstance(recursos_raw, list) else None
+
     incident = Incident(
         event_id=event_id,
         incident_number=max_num + 1,
@@ -497,7 +504,9 @@ def create_incident(event_id):
         info_ubicacion=data.get('info_ubicacion'),
         dorsal=data.get('dorsal'),
         patologia=data.get('patologia'),
-        fecha_creacion=now
+        fecha_creacion=now,
+        recursos_asignados=recursos_json,
+        canal_entrada=data.get('canal_entrada'),
     )
     if nuevo_estado == 'pre-incidente': incident.fecha_pre_activado = now
     elif nuevo_estado == 'activo': incident.fecha_activado = now
@@ -541,9 +550,17 @@ def update_incident(event_id, incident_id):
     if 'lng' in data and data['lng'] != incident.lng:
         coords_changed = True
 
-    for field in ['estado', 'reportado_por', 'tipo', 'descripcion', 'lat', 'lng', 'info_ubicacion', 'dorsal', 'patologia']:
+    for field in ['estado', 'reportado_por', 'tipo', 'descripcion', 'lat', 'lng', 'info_ubicacion', 'dorsal', 'patologia', 'canal_entrada']:
         if field in data:
             setattr(incident, field, data[field])
+
+    # Actualizar recursos_asignados (campo JSON especial)
+    if 'recursos_asignados' in data:
+        recursos_raw = data['recursos_asignados']
+        if isinstance(recursos_raw, list):
+            incident.recursos_asignados = json.dumps(recursos_raw)
+        elif recursos_raw is None:
+            incident.recursos_asignados = None
     
     # Actualizar dirección si las coordenadas cambiaron
     if coords_changed:

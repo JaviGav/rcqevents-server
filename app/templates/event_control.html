@@ -408,8 +408,9 @@
                     <th>Tipo</th>
                     <th>Estado</th>
                     <th>Descripción</th>
-                    <th>Reportado por</th>
+                    <th>Reportado / Entrada</th>
                     <th>Localización</th>
+                    <th>Recursos</th>
                     <th>Asignados Activos</th>
                     <th>Acciones</th>
                 </tr>
@@ -461,9 +462,13 @@
                         <option value="">-- Selecciona quién reporta --</option>
                         <option value="CME">CME</option>
                         <option value="GUB">GUB</option>
-                        <option value="Servicios Médicos">Servicios Médicos</option>
+                        <option value="Policía Local">Policía Local</option>
+                        <option value="SEM">SEM</option>
+                        <option value="Serv. Médicos">Serv. Médicos</option>
+                        <option value="Auxiliares">Auxiliares</option>
+                        <option value="Quijotes">Quijotes</option>
+                        <option value="112">112</option>
                         <option value="Público">Público</option>
-                        <option value="Seguridad">Seguridad</option>
                         {% for ind in indicativos %}
                             <option value="{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}">{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}</option>
                         {% endfor %}
@@ -473,6 +478,26 @@
                 <div class="form-group" id="reportadoOtroGroup" style="display:none;">
                     <label for="incidentReportadoOtro">Especifica quién reporta:</label>
                     <input type="text" id="incidentReportadoOtro" name="reportado_otro" style="width:90%;" placeholder="Nombre o descripción de quién reporta...">
+                </div>
+                <!-- Canal de entrada del servicio -->
+                <div class="form-group">
+                    <label for="incidentCanalEntrada">Canal de entrada del servicio:</label>
+                    <select id="incidentCanalEntrada" name="canal_entrada" style="width:90%;">
+                        <option value="">-- ¿Por dónde entró? --</option>
+                        <option value="112">📞 112</option>
+                        <option value="CME">📻 CME</option>
+                        <option value="GUB">🚔 GUB</option>
+                        <option value="Policía Local">🚔 Policía Local</option>
+                        <option value="SEM">🚑 SEM</option>
+                        <option value="Serv. Médicos">🏥 Serv. Médicos</option>
+                        <option value="Auxiliares">🦺 Auxiliares</option>
+                        <option value="Quijotes">📻 Quijotes</option>
+                        <option value="Otro">🔧 Otro (especificar)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="canalEntradaOtroGroup" style="display:none;">
+                    <label for="incidentCanalEntradaOtro">Especifica el canal de entrada:</label>
+                    <input type="text" id="incidentCanalEntradaOtro" name="canal_entrada_otro" style="width:90%;" placeholder="Describe el canal de entrada...">
                 </div>
                 <div class="form-group">
                     <label>Localización:</label>
@@ -490,6 +515,97 @@
                     <!-- Campos ocultos para lat/lng -->
                     <input type="hidden" id="incidentLat" name="lat">
                     <input type="hidden" id="incidentLng" name="lng">
+                </div>
+                <!-- Recursos asignados / en el lugar -->
+                <div class="form-group">
+                    <label>Recursos asignados / en el lugar:</label>
+                    <div id="recursosContainer" style="margin-top:8px;">
+                        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap:8px;">
+                            <!-- Serv. Médicos -->
+                            <div class="recurso-card" data-recurso="Serv. Médicos" style="border:1px solid #dee2e6; border-radius:6px; padding:8px; background:#f8f9fa;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold; margin-bottom:4px;">
+                                    <input type="checkbox" class="recurso-check" data-recurso="Serv. Médicos"> 🏥 Serv. Médicos
+                                </label>
+                                <div class="recurso-estado-btns" style="display:none; gap:4px; flex-direction:row;">
+                                    <button type="button" class="recurso-estado-btn" data-estado="asignado" style="flex:1; padding:3px 5px; border:2px solid #ffc107; border-radius:4px; background:#fff3cd; color:#856404; font-size:11px; cursor:pointer; font-weight:bold;">Asignado</button>
+                                    <button type="button" class="recurso-estado-btn active-recurso-estado" data-estado="en_lugar" style="flex:1; padding:3px 5px; border:2px solid #0d6efd; border-radius:4px; background:#cce5ff; color:#004085; font-size:11px; cursor:pointer; font-weight:bold;">En el lugar</button>
+                                </div>
+                            </div>
+                            <!-- Auxiliares -->
+                            <div class="recurso-card" data-recurso="Auxiliares" style="border:1px solid #dee2e6; border-radius:6px; padding:8px; background:#f8f9fa;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold; margin-bottom:4px;">
+                                    <input type="checkbox" class="recurso-check" data-recurso="Auxiliares"> 🦺 Auxiliares
+                                </label>
+                                <div class="recurso-estado-btns" style="display:none; gap:4px; flex-direction:row;">
+                                    <button type="button" class="recurso-estado-btn" data-estado="asignado" style="flex:1; padding:3px 5px; border:2px solid #ffc107; border-radius:4px; background:#fff3cd; color:#856404; font-size:11px; cursor:pointer; font-weight:bold;">Asignado</button>
+                                    <button type="button" class="recurso-estado-btn active-recurso-estado" data-estado="en_lugar" style="flex:1; padding:3px 5px; border:2px solid #0d6efd; border-radius:4px; background:#cce5ff; color:#004085; font-size:11px; cursor:pointer; font-weight:bold;">En el lugar</button>
+                                </div>
+                            </div>
+                            <!-- Quijotes -->
+                            <div class="recurso-card" data-recurso="Quijotes" style="border:1px solid #dee2e6; border-radius:6px; padding:8px; background:#f8f9fa;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold; margin-bottom:4px;">
+                                    <input type="checkbox" class="recurso-check" data-recurso="Quijotes"> 📻 Quijotes
+                                </label>
+                                <div class="recurso-estado-btns" style="display:none; gap:4px; flex-direction:row;">
+                                    <button type="button" class="recurso-estado-btn" data-estado="asignado" style="flex:1; padding:3px 5px; border:2px solid #ffc107; border-radius:4px; background:#fff3cd; color:#856404; font-size:11px; cursor:pointer; font-weight:bold;">Asignado</button>
+                                    <button type="button" class="recurso-estado-btn active-recurso-estado" data-estado="en_lugar" style="flex:1; padding:3px 5px; border:2px solid #0d6efd; border-radius:4px; background:#cce5ff; color:#004085; font-size:11px; cursor:pointer; font-weight:bold;">En el lugar</button>
+                                </div>
+                            </div>
+                            <!-- Policía Local -->
+                            <div class="recurso-card" data-recurso="Policía Local" style="border:1px solid #dee2e6; border-radius:6px; padding:8px; background:#f8f9fa;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold; margin-bottom:4px;">
+                                    <input type="checkbox" class="recurso-check" data-recurso="Policía Local"> 🚔 Policía Local
+                                </label>
+                                <div class="recurso-estado-btns" style="display:none; gap:4px; flex-direction:row;">
+                                    <button type="button" class="recurso-estado-btn" data-estado="asignado" style="flex:1; padding:3px 5px; border:2px solid #ffc107; border-radius:4px; background:#fff3cd; color:#856404; font-size:11px; cursor:pointer; font-weight:bold;">Asignado</button>
+                                    <button type="button" class="recurso-estado-btn active-recurso-estado" data-estado="en_lugar" style="flex:1; padding:3px 5px; border:2px solid #0d6efd; border-radius:4px; background:#cce5ff; color:#004085; font-size:11px; cursor:pointer; font-weight:bold;">En el lugar</button>
+                                </div>
+                            </div>
+                            <!-- GUB -->
+                            <div class="recurso-card" data-recurso="GUB" style="border:1px solid #dee2e6; border-radius:6px; padding:8px; background:#f8f9fa;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold; margin-bottom:4px;">
+                                    <input type="checkbox" class="recurso-check" data-recurso="GUB"> 🚔 GUB
+                                </label>
+                                <div class="recurso-estado-btns" style="display:none; gap:4px; flex-direction:row;">
+                                    <button type="button" class="recurso-estado-btn" data-estado="asignado" style="flex:1; padding:3px 5px; border:2px solid #ffc107; border-radius:4px; background:#fff3cd; color:#856404; font-size:11px; cursor:pointer; font-weight:bold;">Asignado</button>
+                                    <button type="button" class="recurso-estado-btn active-recurso-estado" data-estado="en_lugar" style="flex:1; padding:3px 5px; border:2px solid #0d6efd; border-radius:4px; background:#cce5ff; color:#004085; font-size:11px; cursor:pointer; font-weight:bold;">En el lugar</button>
+                                </div>
+                            </div>
+                            <!-- CME -->
+                            <div class="recurso-card" data-recurso="CME" style="border:1px solid #dee2e6; border-radius:6px; padding:8px; background:#f8f9fa;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold; margin-bottom:4px;">
+                                    <input type="checkbox" class="recurso-check" data-recurso="CME"> 📻 CME
+                                </label>
+                                <div class="recurso-estado-btns" style="display:none; gap:4px; flex-direction:row;">
+                                    <button type="button" class="recurso-estado-btn" data-estado="asignado" style="flex:1; padding:3px 5px; border:2px solid #ffc107; border-radius:4px; background:#fff3cd; color:#856404; font-size:11px; cursor:pointer; font-weight:bold;">Asignado</button>
+                                    <button type="button" class="recurso-estado-btn active-recurso-estado" data-estado="en_lugar" style="flex:1; padding:3px 5px; border:2px solid #0d6efd; border-radius:4px; background:#cce5ff; color:#004085; font-size:11px; cursor:pointer; font-weight:bold;">En el lugar</button>
+                                </div>
+                            </div>
+                            <!-- SEM -->
+                            <div class="recurso-card" data-recurso="SEM" style="border:1px solid #dee2e6; border-radius:6px; padding:8px; background:#f8f9fa;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold; margin-bottom:4px;">
+                                    <input type="checkbox" class="recurso-check" data-recurso="SEM"> 🚑 SEM
+                                </label>
+                                <div class="recurso-estado-btns" style="display:none; gap:4px; flex-direction:row;">
+                                    <button type="button" class="recurso-estado-btn" data-estado="asignado" style="flex:1; padding:3px 5px; border:2px solid #ffc107; border-radius:4px; background:#fff3cd; color:#856404; font-size:11px; cursor:pointer; font-weight:bold;">Asignado</button>
+                                    <button type="button" class="recurso-estado-btn active-recurso-estado" data-estado="en_lugar" style="flex:1; padding:3px 5px; border:2px solid #0d6efd; border-radius:4px; background:#cce5ff; color:#004085; font-size:11px; cursor:pointer; font-weight:bold;">En el lugar</button>
+                                </div>
+                            </div>
+                            <!-- Otros -->
+                            <div class="recurso-card recurso-otros-card" data-recurso="__otros__" style="border:1px solid #dee2e6; border-radius:6px; padding:8px; background:#f8f9fa;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold; margin-bottom:4px;">
+                                    <input type="checkbox" class="recurso-check" data-recurso="__otros__"> 🔧 Otros
+                                </label>
+                                <div class="recurso-otros-content" style="display:none;">
+                                    <input type="text" class="recurso-otros-texto" placeholder="Especifica el recurso..." style="width:100%; padding:4px 6px; border:1px solid #ccc; border-radius:4px; margin-bottom:4px; font-size:13px; box-sizing:border-box;">
+                                    <div class="recurso-estado-btns" style="display:flex; gap:4px; flex-direction:row;">
+                                        <button type="button" class="recurso-estado-btn" data-estado="asignado" style="flex:1; padding:3px 5px; border:2px solid #ffc107; border-radius:4px; background:#fff3cd; color:#856404; font-size:11px; cursor:pointer; font-weight:bold;">Asignado</button>
+                                        <button type="button" class="recurso-estado-btn active-recurso-estado" data-estado="en_lugar" style="flex:1; padding:3px 5px; border:2px solid #0d6efd; border-radius:4px; background:#cce5ff; color:#004085; font-size:11px; cursor:pointer; font-weight:bold;">En el lugar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="incidentEstado">Estado:</label>
@@ -633,14 +749,17 @@
                              <label for="assignIndicativoSelect" style="display:block; margin-bottom:5px; font-weight:bold;">Asignar a:</label>
                              <select id="assignIndicativoSelect" required style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
                                  <option value="">-- Selecciona a quién asignar --</option>
-                                 <option value="CME">CME</option>
-                                 <option value="GUB">GUB</option>
-                                 <option value="Servicios Médicos">Servicios Médicos</option>
-                                 <option value="Seguridad">Seguridad</option>
+                                 <option value="CME">📻 CME</option>
+                                 <option value="GUB">🚔 GUB</option>
+                                 <option value="Policía Local">🚔 Policía Local</option>
+                                 <option value="SEM">🚑 SEM</option>
+                                 <option value="Serv. Médicos">🏥 Serv. Médicos</option>
+                                 <option value="Auxiliares">🦺 Auxiliares</option>
+                                 <option value="Quijotes">📻 Quijotes</option>
                                  {% for ind in indicativos %}
                                      <option value="{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}">{{ ind.indicativo ~ (' (' ~ ind.nombre ~ ')' if ind.nombre else '') }}</option>
                                  {% endfor %}
-                                 <option value="Otro">Otro (especificar)</option>
+                                 <option value="Otro">🔧 Otro (especificar)</option>
                              </select>
                          </div>
                          <div style="margin-bottom:15px;" id="assignOtroGroup" style="display:none;">
@@ -1235,11 +1354,16 @@ addIncidentBtn.addEventListener('click', function() {
     patologiaGroup.style.display = 'none';
     document.getElementById('tipoOtroGroup').style.display = 'none';
     document.getElementById('reportadoOtroGroup').style.display = 'none';
+    document.getElementById('canalEntradaOtroGroup').style.display = 'none';
     document.getElementById('incidentTipoOtro').required = false;
     document.getElementById('incidentReportadoOtro').required = false;
+    document.getElementById('incidentCanalEntradaOtro').required = false;
     // Limpiar explícitamente los campos de texto libre
     document.getElementById('incidentTipoOtro').value = '';
     document.getElementById('incidentReportadoOtro').value = '';
+    document.getElementById('incidentCanalEntradaOtro').value = '';
+    // Limpiar recursos
+    resetRecursosForm();
     editingIncidentId = null; // Asegurarse de que no estamos en modo edición
     document.getElementById('incidentLat').value = ''; // Limpiar campos de lat/lng
     document.getElementById('incidentLng').value = '';
@@ -1273,10 +1397,14 @@ closeIncidentModal.addEventListener('click', function() {
     // Limpiar campos de texto libre
     document.getElementById('tipoOtroGroup').style.display = 'none';
     document.getElementById('reportadoOtroGroup').style.display = 'none';
+    document.getElementById('canalEntradaOtroGroup').style.display = 'none';
     document.getElementById('incidentTipoOtro').value = '';
     document.getElementById('incidentReportadoOtro').value = '';
+    document.getElementById('incidentCanalEntradaOtro').value = '';
     document.getElementById('incidentTipoOtro').required = false;
     document.getElementById('incidentReportadoOtro').required = false;
+    document.getElementById('incidentCanalEntradaOtro').required = false;
+    resetRecursosForm();
     editingIncidentId = null;
     if (incidentMarker) {
         incidentMap.removeLayer(incidentMarker);
@@ -1377,10 +1505,14 @@ async function openIncidentModalForEdit(incidentId) {
         // Limpiar campos de texto libre antes de cargar datos
         document.getElementById('tipoOtroGroup').style.display = 'none';
         document.getElementById('reportadoOtroGroup').style.display = 'none';
+        document.getElementById('canalEntradaOtroGroup').style.display = 'none';
         document.getElementById('incidentTipoOtro').value = '';
         document.getElementById('incidentReportadoOtro').value = '';
+        document.getElementById('incidentCanalEntradaOtro').value = '';
         document.getElementById('incidentTipoOtro').required = false;
         document.getElementById('incidentReportadoOtro').required = false;
+        document.getElementById('incidentCanalEntradaOtro').required = false;
+        resetRecursosForm();
         
         const response = await fetch(`/events/${eventId}/incidents/${incidentId}`);
         if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
@@ -1444,6 +1576,29 @@ async function openIncidentModalForEdit(incidentId) {
             
             document.getElementById('incidentDescripcion').value = incident.descripcion || '';
             document.getElementById('incidentInfoUbicacion').value = incident.info_ubicacion || '';
+
+            // Canal de entrada
+            const canalSelect = document.getElementById('incidentCanalEntrada');
+            const canalOtroGroup = document.getElementById('canalEntradaOtroGroup');
+            const canalOtroInput = document.getElementById('incidentCanalEntradaOtro');
+            const canalOpciones = Array.from(canalSelect.options).map(o => o.value);
+            if (incident.canal_entrada && canalOpciones.includes(incident.canal_entrada)) {
+                canalSelect.value = incident.canal_entrada;
+                canalOtroGroup.style.display = 'none';
+                canalOtroInput.required = false;
+            } else if (incident.canal_entrada) {
+                canalSelect.value = 'Otro';
+                canalOtroGroup.style.display = 'block';
+                canalOtroInput.value = incident.canal_entrada;
+                canalOtroInput.required = true;
+            } else {
+                canalSelect.value = '';
+                canalOtroGroup.style.display = 'none';
+            }
+
+            // Recursos asignados
+            setRecursosInForm(incident.recursos_asignados || []);
+
             // Usar la nueva función para establecer el estado con botones visuales
             setIncidentStatus(incident.estado || 'activo');
             document.getElementById('incidentDorsal').value = incident.dorsal || '';
@@ -1512,7 +1667,7 @@ function renderIncidents(incidents) {
     if (!incidents || incidents.length === 0) {
         const row = tableBody.insertRow();
         const cell = row.insertCell();
-        cell.colSpan = 8; // Número de columnas de la tabla
+        cell.colSpan = 9; // Número de columnas de la tabla
         cell.textContent = filteredIncidents.length === 0 && allIncidents.length > 0 ? 
             'No se encontraron incidentes que coincidan con los filtros.' : 
             'No hay incidentes registrados para este evento.';
@@ -1550,7 +1705,17 @@ function renderIncidents(incidents) {
         });
         statusCell.appendChild(statusSpan);
         row.insertCell().textContent = incident.descripcion ? incident.descripcion.substring(0, 50) + (incident.descripcion.length > 50 ? '...' : '') : '-';
-        row.insertCell().textContent = incident.reportado_por || '-';
+
+        // Celda "Reportado / Entrada"
+        const reportadoCell = row.insertCell();
+        let reportadoHtml = '';
+        if (incident.reportado_por) {
+            reportadoHtml += `<div style="font-size:12px;"><b>Reportado:</b> ${incident.reportado_por}</div>`;
+        }
+        if (incident.canal_entrada) {
+            reportadoHtml += `<div style="font-size:12px; margin-top:2px;"><b>Entrada:</b> <span style="background:#e3f2fd; color:#0d47a1; padding:1px 5px; border-radius:8px; font-size:11px;">${incident.canal_entrada}</span></div>`;
+        }
+        reportadoCell.innerHTML = reportadoHtml || '<span style="color:#999">-</span>';
         
         const locCell = row.insertCell();
         locCell.style.minWidth = '200px'; // Para dar espacio a la dirección
@@ -1567,6 +1732,28 @@ function renderIncidents(incidents) {
             locCell.innerHTML = locationInfo;
         } else {
             locCell.textContent = '-';
+        }
+
+        // Celda de recursos asignados / en el lugar
+        const recursosCell = row.insertCell();
+        recursosCell.style.minWidth = '160px';
+        const recursos = incident.recursos_asignados || [];
+        if (recursos.length > 0) {
+            let recursosHtml = '';
+            recursos.forEach(rec => {
+                const esEnLugar = rec.estado === 'en_lugar';
+                const bg = esEnLugar ? '#cce5ff' : '#fff3cd';
+                const color = esEnLugar ? '#004085' : '#856404';
+                const border = esEnLugar ? '#99d6ff' : '#ffc107';
+                const icon = esEnLugar ? '📍' : '⏳';
+                const label = esEnLugar ? 'En el lugar' : 'Asignado';
+                recursosHtml += `<div style="display:inline-flex; align-items:center; margin:2px 2px 2px 0; padding:2px 6px; border-radius:10px; font-size:11px; background:${bg}; color:${color}; border:1px solid ${border}; white-space:nowrap;" title="${label}">
+                    <span style="margin-right:3px;">${icon}</span><strong>${rec.nombre}</strong>
+                </div>`;
+            });
+            recursosCell.innerHTML = recursosHtml;
+        } else {
+            recursosCell.innerHTML = '<em style="color:#ccc; font-size:11px;">—</em>';
         }
 
         const assignmentsCell = row.insertCell();
@@ -2360,16 +2547,25 @@ incidentForm.addEventListener('submit', async function(e) {
         reportadoPorFinal = document.getElementById('incidentReportadoOtro').value;
     }
 
+    // Determinar el canal de entrada final
+    let canalEntradaFinal = document.getElementById('incidentCanalEntrada').value;
+    if (canalEntradaFinal === 'Otro') {
+        canalEntradaFinal = document.getElementById('incidentCanalEntradaOtro').value.trim() || null;
+    }
+    if (!canalEntradaFinal) canalEntradaFinal = null;
+
     const formData = {
         tipo: tipoFinal,
         descripcion: document.getElementById('incidentDescripcion').value,
         reportado_por: reportadoPorFinal,
+        canal_entrada: canalEntradaFinal,
         lat: parseFloat(document.getElementById('incidentLat').value),
         lng: parseFloat(document.getElementById('incidentLng').value),
         info_ubicacion: document.getElementById('incidentInfoUbicacion').value || null,
         estado: document.getElementById('incidentEstado').value,
         dorsal: document.getElementById('incidentDorsal').value || null,
         patologia: document.getElementById('incidentPatologia').value || null,
+        recursos_asignados: getRecursosFromForm(),
     };
 
     if (isNaN(formData.lat) || isNaN(formData.lng)) {
@@ -2404,6 +2600,9 @@ incidentForm.addEventListener('submit', async function(e) {
             incidentModal.style.display = 'none';
             incidentForm.reset(); // Limpiar formulario
             editingIncidentId = null; // Resetear modo edición y el ID
+            resetRecursosForm();
+            document.getElementById('canalEntradaOtroGroup').style.display = 'none';
+            document.getElementById('incidentCanalEntradaOtro').value = '';
             if (incidentMarker) {
                 incidentMap.removeLayer(incidentMarker);
                 incidentMarker = null;
@@ -2638,10 +2837,14 @@ function closeAllModals() {
         // Limpiar campos de texto libre
         document.getElementById('tipoOtroGroup').style.display = 'none';
         document.getElementById('reportadoOtroGroup').style.display = 'none';
+        document.getElementById('canalEntradaOtroGroup').style.display = 'none';
         document.getElementById('incidentTipoOtro').value = '';
         document.getElementById('incidentReportadoOtro').value = '';
+        document.getElementById('incidentCanalEntradaOtro').value = '';
         document.getElementById('incidentTipoOtro').required = false;
         document.getElementById('incidentReportadoOtro').required = false;
+        document.getElementById('incidentCanalEntradaOtro').required = false;
+        resetRecursosForm();
     }
     
     // Cerrar modal de cambio de estado
@@ -2697,10 +2900,14 @@ document.addEventListener('click', function(e) {
         // Limpiar campos de texto libre
         document.getElementById('tipoOtroGroup').style.display = 'none';
         document.getElementById('reportadoOtroGroup').style.display = 'none';
+        document.getElementById('canalEntradaOtroGroup').style.display = 'none';
         document.getElementById('incidentTipoOtro').value = '';
         document.getElementById('incidentReportadoOtro').value = '';
+        document.getElementById('incidentCanalEntradaOtro').value = '';
         document.getElementById('incidentTipoOtro').required = false;
         document.getElementById('incidentReportadoOtro').required = false;
+        document.getElementById('incidentCanalEntradaOtro').required = false;
+        resetRecursosForm();
     }
     
     // Modal de cambio de estado
@@ -2849,6 +3056,171 @@ function openQuickAssignmentStatusModal(assignmentId, assignmentName, currentSta
     
     modal.style.display = 'flex';
 }
+
+// =============================================
+// RECURSOS ASIGNADOS — lógica de UI
+// =============================================
+
+// Inicializar listeners de recursos al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    initRecursosUI();
+});
+
+function initRecursosUI() {
+    // Checkboxes de recursos: mostrar/ocultar botones de estado
+    document.querySelectorAll('#recursosContainer .recurso-check').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const card = this.closest('.recurso-card');
+            const esOtros = this.dataset.recurso === '__otros__';
+            if (esOtros) {
+                const content = card.querySelector('.recurso-otros-content');
+                if (content) content.style.display = this.checked ? 'block' : 'none';
+            } else {
+                const estadoBtns = card.querySelector('.recurso-estado-btns');
+                if (estadoBtns) estadoBtns.style.display = this.checked ? 'flex' : 'none';
+            }
+            // Si se desmarca, resetear el estado activo al default (en_lugar)
+            if (!this.checked) {
+                card.querySelectorAll('.recurso-estado-btn').forEach(btn => {
+                    btn.classList.remove('active-recurso-estado');
+                    if (btn.dataset.estado === 'en_lugar') btn.classList.add('active-recurso-estado');
+                });
+                updateRecursoButtonStyles(card);
+            }
+        });
+    });
+
+    // Botones de estado de recursos
+    document.querySelectorAll('#recursosContainer .recurso-estado-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const card = this.closest('.recurso-card');
+            card.querySelectorAll('.recurso-estado-btn').forEach(b => b.classList.remove('active-recurso-estado'));
+            this.classList.add('active-recurso-estado');
+            updateRecursoButtonStyles(card);
+        });
+    });
+
+    // Inicializar estilos
+    document.querySelectorAll('#recursosContainer .recurso-card').forEach(card => {
+        updateRecursoButtonStyles(card);
+    });
+}
+
+function updateRecursoButtonStyles(card) {
+    card.querySelectorAll('.recurso-estado-btn').forEach(btn => {
+        const isActive = btn.classList.contains('active-recurso-estado');
+        if (btn.dataset.estado === 'asignado') {
+            btn.style.borderWidth = isActive ? '3px' : '2px';
+            btn.style.boxShadow = isActive ? '0 2px 6px rgba(255,193,7,0.5)' : 'none';
+            btn.style.background = isActive ? '#ffc107' : '#fff3cd';
+            btn.style.color = isActive ? '#000' : '#856404';
+        } else {
+            btn.style.borderWidth = isActive ? '3px' : '2px';
+            btn.style.boxShadow = isActive ? '0 2px 6px rgba(13,110,253,0.4)' : 'none';
+            btn.style.background = isActive ? '#0d6efd' : '#cce5ff';
+            btn.style.color = isActive ? '#fff' : '#004085';
+        }
+    });
+}
+
+function getRecursosFromForm() {
+    const recursos = [];
+    document.querySelectorAll('#recursosContainer .recurso-check:checked').forEach(checkbox => {
+        const card = checkbox.closest('.recurso-card');
+        const nombreRecurso = checkbox.dataset.recurso;
+        const activeBtn = card.querySelector('.recurso-estado-btn.active-recurso-estado');
+        const estado = activeBtn ? activeBtn.dataset.estado : 'en_lugar';
+
+        if (nombreRecurso === '__otros__') {
+            const texto = card.querySelector('.recurso-otros-texto');
+            if (texto && texto.value.trim()) {
+                recursos.push({ nombre: texto.value.trim(), estado: estado });
+            }
+        } else {
+            recursos.push({ nombre: nombreRecurso, estado: estado });
+        }
+    });
+    return recursos;
+}
+
+function resetRecursosForm() {
+    document.querySelectorAll('#recursosContainer .recurso-check').forEach(cb => {
+        cb.checked = false;
+        const card = cb.closest('.recurso-card');
+        const estadoBtns = card.querySelector('.recurso-estado-btns');
+        const otrosContent = card.querySelector('.recurso-otros-content');
+        if (estadoBtns) estadoBtns.style.display = 'none';
+        if (otrosContent) otrosContent.style.display = 'none';
+        const otrosTexto = card.querySelector('.recurso-otros-texto');
+        if (otrosTexto) otrosTexto.value = '';
+        // Reset estado activo a en_lugar (default)
+        card.querySelectorAll('.recurso-estado-btn').forEach(btn => {
+            btn.classList.remove('active-recurso-estado');
+            if (btn.dataset.estado === 'en_lugar') btn.classList.add('active-recurso-estado');
+        });
+        updateRecursoButtonStyles(card);
+    });
+}
+
+function setRecursosInForm(recursos) {
+    resetRecursosForm();
+    if (!recursos || recursos.length === 0) return;
+
+    recursos.forEach(rec => {
+        const nombre = rec.nombre;
+        const estado = rec.estado || 'en_lugar';
+
+        // Buscar si es un recurso predefinido
+        const predefinedCheckbox = document.querySelector(`#recursosContainer .recurso-check[data-recurso="${nombre}"]`);
+        if (predefinedCheckbox) {
+            predefinedCheckbox.checked = true;
+            const card = predefinedCheckbox.closest('.recurso-card');
+            const estadoBtns = card.querySelector('.recurso-estado-btns');
+            if (estadoBtns) estadoBtns.style.display = 'flex';
+            // Marcar estado correcto
+            card.querySelectorAll('.recurso-estado-btn').forEach(btn => {
+                btn.classList.remove('active-recurso-estado');
+                if (btn.dataset.estado === estado) btn.classList.add('active-recurso-estado');
+            });
+            updateRecursoButtonStyles(card);
+        } else {
+            // Es un recurso personalizado → usar la tarjeta "Otros"
+            const otrosCheckbox = document.querySelector('#recursosContainer .recurso-check[data-recurso="__otros__"]');
+            if (otrosCheckbox && !otrosCheckbox.checked) {
+                otrosCheckbox.checked = true;
+                const card = otrosCheckbox.closest('.recurso-card');
+                const otrosContent = card.querySelector('.recurso-otros-content');
+                if (otrosContent) otrosContent.style.display = 'block';
+                const otrosTexto = card.querySelector('.recurso-otros-texto');
+                if (otrosTexto) otrosTexto.value = nombre;
+                card.querySelectorAll('.recurso-estado-btn').forEach(btn => {
+                    btn.classList.remove('active-recurso-estado');
+                    if (btn.dataset.estado === estado) btn.classList.add('active-recurso-estado');
+                });
+                updateRecursoButtonStyles(card);
+            }
+        }
+    });
+}
+
+// Canal de entrada: mostrar/ocultar campo "Otro"
+document.addEventListener('DOMContentLoaded', function() {
+    const canalSelect = document.getElementById('incidentCanalEntrada');
+    if (canalSelect) {
+        canalSelect.addEventListener('change', function() {
+            const otroGroup = document.getElementById('canalEntradaOtroGroup');
+            const otroInput = document.getElementById('incidentCanalEntradaOtro');
+            if (this.value === 'Otro') {
+                otroGroup.style.display = 'block';
+                otroInput.required = true;
+            } else {
+                otroGroup.style.display = 'none';
+                otroInput.required = false;
+                otroInput.value = '';
+            }
+        });
+    }
+});
 
 // Función para cambiar estado de asignación rápidamente
 async function changeAssignmentStatusQuick(newStatus) {
