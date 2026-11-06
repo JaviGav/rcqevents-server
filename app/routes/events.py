@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, render_template, current_app
+from flask import Blueprint, jsonify, request, render_template, current_app, send_from_directory
 from app.models.event import Event
 from app.models.user import User
 from app.extensions import db
@@ -7,9 +7,13 @@ from app.routes.auth import token_required
 from app.models.indicativo import Indicativo
 from app.models.incident import Incident
 from app.models.incident_assignment import IncidentAssignment
+from app.models.incident_comment import IncidentComment
 from sqlalchemy import func
 import requests
 import json
+import os
+import uuid
+from werkzeug.utils import secure_filename
 
 bp = Blueprint('events', __name__, url_prefix='/events')
 
@@ -1037,5 +1041,134 @@ def delete_incident_assignment(event_id, incident_id, assignment_id):
         db.session.rollback()
         current_app.logger.error(f"Error al eliminar asignación: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+# ─── Comentarios con fotos de incidentes ─────────────────────────────────────
+
+ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'}
+
+def _allowed_image(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+def _comment_image_url(filename):
+    """Construye la URL pública de una imagen de comentario."""
+    return f"/events/uploads/{filename}"
+
+
+@bp.route('/uploads/<path:filename>', methods=['GET'])
+def serve_comment_upload(filename):
+    """Sirve las imágenes subidas en los comentarios."""
+    upload_folder = current_app.config.get('UPLOAD_FOLDER')
+    return send_from_directory(upload_folder, filename)
+
+
+@bp.route('/<int:event_id>/incidents/<int:incident_id>/comments', methods=['GET'])
+def get_incident_comments(event_id, incident_id):
+    """Lista todos los comentarios de un incidente."""
+    try:
+        incident = Incident.query.filter_by(id=incident_id, event_id=event_id).first()
+        if not incident:
+            return jsonify({'status': 'error', 'message': 'Incidente no encontrado'}), 404
+
+        comments = IncidentComment.query.filter_by(incident_id=incident_id)\
+            .order_by(IncidentComment.fecha_creacion.asc()).all()
+
+        return jsonify({
+            'status': 'success',
+            'comments': [c.to_dict(image_url_base='/events/uploads/') for c in comments]
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error al listar comentarios: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@bp.route('/<int:event_id>/incidents/<int:incident_id>/comments', methods=['POST'])
+def create_incident_comment(event_id, incident_id):
+    """Crea un comentario (con texto y/o imagen) para un incidente."""
+    try:
+        incident = Incident.query.filter_by(id=incident_id, event_id=event_id).first()
+        if not incident:
+            return jsonify({'status': 'error', 'message': 'Incidente no encontrado'}), 404
+
+        # Obtener texto y autor del formulario (multipart o JSON)
+        if request.content_type and 'multipart' in request.content_type:
+            texto = request.form.get('texto', '').strip() or None
+            autor = request.form.get('autor', '').strip() or None
+        else:
+            data = request.get_json(silent=True) or {}
+            texto = data.get('texto', '').strip() or None
+            autor = data.get('autor', '').strip() or None
+
+        imagen_filename = None
+
+        # Procesar imagen adjunta si existe
+        if 'imagen' in request.files:
+            imagen = request.files['imagen']
+            if imagen and imagen.filename:
+                if not _allowed_image(imagen.filename):
+                    return jsonify({'status': 'error', 'message': 'Formato de imagen no permitido'}), 400
+
+                ext = imagen.filename.rsplit('.', 1)[1].lower()
+                imagen_filename = f"{incident_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}.{ext}"
+                safe_name = secure_filename(imagen_filename)
+                upload_folder = current_app.config.get('UPLOAD_FOLDER')
+                imagen.save(os.path.join(upload_folder, safe_name))
+                imagen_filename = safe_name
+
+        if not texto and not imagen_filename:
+            return jsonify({'status': 'error', 'message': 'Se requiere texto o imagen'}), 400
+
+        comment = IncidentComment(
+            incident_id=incident_id,
+            texto=texto,
+            imagen_filename=imagen_filename,
+            autor=autor,
+        )
+        db.session.add(comment)
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'comment': comment.to_dict(image_url_base='/events/uploads/')
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error al crear comentario: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@bp.route('/<int:event_id>/incidents/<int:incident_id>/comments/<int:comment_id>', methods=['DELETE'])
+def delete_incident_comment(event_id, incident_id, comment_id):
+    """Elimina un comentario y su imagen asociada si existe."""
+    try:
+        incident = Incident.query.filter_by(id=incident_id, event_id=event_id).first()
+        if not incident:
+            return jsonify({'status': 'error', 'message': 'Incidente no encontrado'}), 404
+
+        comment = IncidentComment.query.filter_by(id=comment_id, incident_id=incident_id).first()
+        if not comment:
+            return jsonify({'status': 'error', 'message': 'Comentario no encontrado'}), 404
+
+        # Eliminar imagen del disco si existe
+        if comment.imagen_filename:
+            upload_folder = current_app.config.get('UPLOAD_FOLDER')
+            img_path = os.path.join(upload_folder, comment.imagen_filename)
+            if os.path.exists(img_path):
+                try:
+                    os.remove(img_path)
+                except Exception as e_rm:
+                    current_app.logger.warning(f"No se pudo eliminar imagen {img_path}: {e_rm}")
+
+        db.session.delete(comment)
+        db.session.commit()
+
+        return jsonify({'status': 'success', 'message': 'Comentario eliminado'})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error al eliminar comentario: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 # Fin del archivo

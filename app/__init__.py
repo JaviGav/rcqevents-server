@@ -29,9 +29,15 @@ def create_app(config_name='default'):
     CORS(app, resources={r"/*": {"origins": app.config['CORS_ORIGINS']}})
     socketio.init_app(app, cors_allowed_origins="*")
 
+    # Directorio de uploads para comentarios de incidentes
+    import os
+    upload_folder = app.config.get('UPLOAD_FOLDER', os.path.join(app.root_path, 'static', 'uploads', 'incident_comments'))
+    os.makedirs(upload_folder, exist_ok=True)
+    app.config['UPLOAD_FOLDER'] = upload_folder
+
     # Importar modelos para que Alembic los vea y crear tablas si no existen
     with app.app_context():
-        from .models import user, event, indicativo, incident, incident_assignment, message
+        from .models import user, event, indicativo, incident, incident_assignment, message, incident_comment
         db.create_all()
     
     # Registrar blueprints

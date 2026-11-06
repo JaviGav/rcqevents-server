@@ -4,6 +4,7 @@ from .indicativo import Indicativo
 from .message import Message
 from .incident import Incident
 from .incident_assignment import IncidentAssignment
+from .incident_comment import IncidentComment
 
 __all__ = [
     'User',
@@ -11,5 +12,6 @@ __all__ = [
     'Indicativo',
     'Message',
     'Incident',
-    'IncidentAssignment'
+    'IncidentAssignment',
+    'IncidentComment',
 ] 
