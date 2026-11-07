@@ -31,7 +31,7 @@ def create_app(config_name='default'):
 
     # Directorio de uploads para comentarios de incidentes
     import os
-    upload_folder = app.config.get('UPLOAD_FOLDER', os.path.join(app.root_path, 'static', 'uploads', 'incident_comments'))
+    upload_folder = app.config.get('UPLOAD_FOLDER') or os.path.join(app.root_path, 'static', 'uploads', 'incident_comments')
     os.makedirs(upload_folder, exist_ok=True)
     app.config['UPLOAD_FOLDER'] = upload_folder
 
