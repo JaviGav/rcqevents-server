@@ -1,7 +1,7 @@
 """add incident_comments table
 
 Revision ID: a1b2c3d
-Revises: f84c9e8
+Revises: 4bc6a3cfa046
 Create Date: 2026-11-07 10:00:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'a1b2c3d'
-down_revision = 'f84c9e8'
+down_revision = '4bc6a3cfa046'
 branch_labels = None
 depends_on = None
 
